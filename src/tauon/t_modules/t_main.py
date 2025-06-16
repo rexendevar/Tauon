@@ -39730,6 +39730,16 @@ def main(holder: Holder) -> None:
 			bag.playlist_playing = save[2]
 			bag.active_playlist_viewing = save[3]
 			bag.playlist_view_position = save[4]
+			
+			
+			import inspect
+			from dataclasses import fields
+			logging.info(f"tauonplaylist init signature is {inspect.signature(TauonPlaylist)}")
+			logging.info("defaults are:")
+			for f in fields(TauonPlaylist):
+				logging.info(f"{f.name!r}: default = {f.default!r}")
+
+				
 			if save[5] is not None:
 				if db_version > 68:
 					bag.multi_playlist = []
