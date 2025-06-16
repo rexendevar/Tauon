@@ -6531,7 +6531,7 @@ class Tauon:
 						logging.info("not found")
 
 		if playlist:
-			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, file=path)
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path)
 			logging.info(f"new playlist just dropped\n{final_playlist}")
 			self.pctl.multi_playlist.append(
 				final_playlist)
@@ -13868,7 +13868,7 @@ class Tauon:
 		parent:       str = "",
 		hidden:       bool = False,
 		notify:       bool = True, # Allows us to generate initial playlist before worker thread is ready
-		file:         str = "", 
+		playlist_file:str = "", 
 	) -> TauonPlaylist:
 		"""Generate a TauonPlaylist
 
@@ -13880,7 +13880,7 @@ class Tauon:
 			self.pctl.notify_change()
 
 		#return copy.deepcopy([title, playing, playlist, position, hide_title, selected, uid_gen(), [], hidden, False, parent, False])
-		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False, file=file)
+		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False, playlist_file=playlist_file)
 
 	def open_uri(self, uri: str) -> None:
 		logging.info("OPEN URI")
@@ -39740,9 +39740,8 @@ def main(holder: Holder) -> None:
 					for i, d in enumerate(tauonplaylist_jar):
 						logging.info("here too")
 						logging.info(f"currently loading playlist {d}")
-						if not d.file or d.file == None:
-							d.file = ""
-						
+						if not d["file"]:
+							d["file"] = ""
 						p = TauonPlaylist(**d) # UGLY PATCH
 						bag.multi_playlist.append(p)
 						if i == bag.active_playlist_viewing:

@@ -145,7 +145,7 @@ class TauonPlaylist:
 	locked: bool
 	parent_playlist_id: str        # Filter parent playlist id (string)
 	persist_time_positioning: bool # Persist time positioning
-	file: str = ""                 # playlist will be automatically loaded to and from this filepath
+	playlist_file: str = ""        # playlist will be automatically loaded to and from this filepath
 		
 
 
