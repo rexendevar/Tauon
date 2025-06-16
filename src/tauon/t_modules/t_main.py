@@ -1825,7 +1825,7 @@ class PlayerCtl:
 			logging.exception("Failed to parse as int, returning 'a'")
 			return "a"
 
-	def re_import2(self, pl: int) -> None:
+	def re_import2(self, pl: int) -> None: # note for flynn
 		paths = self.multi_playlist[pl].last_folder
 
 		reduce_paths(paths)
@@ -1846,7 +1846,7 @@ class PlayerCtl:
 		for i, p in enumerate(self.multi_playlist):
 			self.re_import2(i)
 
-	def switch_playlist(self, number: int, cycle: bool = False, quiet: bool = False) -> None:
+	def switch_playlist(self, number: int, cycle: bool = False, quiet: bool = False) -> None: # note for flynn
 		# Close any active menus
 		# for instance in Menu.instances:
 		# 	instance.active = False
@@ -6428,7 +6428,7 @@ class Tauon:
 			#		 self.pctl.star_library[newkey] = copy.deepcopy(self.pctl.star_library[key])
 			#		 # del self.pctl.star_library[key]
 
-	def transfer_tracks(self, index: int, mode: int, to: int) -> None:
+	def transfer_tracks(self, index: int, mode: int, to: int) -> None: # note for flynn
 		todo: list[int] = []
 
 		if mode == 0:
@@ -6532,7 +6532,7 @@ class Tauon:
 						logging.info("not found")
 		# & then add it to the list
 		if playlist:
-			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path)
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path, auto=True, type="m3u")
 			logging.info(f"new playlist just dropped\n{final_playlist}")
 			self.pctl.multi_playlist.append(
 				final_playlist)
