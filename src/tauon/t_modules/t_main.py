@@ -7978,9 +7978,9 @@ class Tauon:
 				os.makedirs(direc)
 		target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
 		
-		if self.pctl.multi_playlist[pl].file:
+		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
 			# if the playlist has a file attribute:
-			target = self.pctl.multi_playlist[pl].file
+			target = self.pctl.multi_playlist[pl].playlist_file
 			logging.info(f"will export to filepath {target}")
 
 		f = open(target, "w", encoding="utf-8")
@@ -39731,17 +39731,12 @@ def main(holder: Holder) -> None:
 			bag.playlist_playing = save[2]
 			bag.active_playlist_viewing = save[3]
 			bag.playlist_view_position = save[4]
-			logging.info("definitely got this far")
 			if save[5] is not None:
 				if db_version > 68:
 					bag.multi_playlist = []
-					logging.info("got here as well")
 					tauonplaylist_jar = save[5]
-					logging.info("didn't fail yet")
 					for i, d in enumerate(tauonplaylist_jar):
-						logging.info("here too")
-						logging.info(f"currently loading playlist {d}")
-						p = TauonPlaylist(**d) # UGLY PATCH
+						p = TauonPlaylist(**d)
 						bag.multi_playlist.append(p)
 						if i == bag.active_playlist_viewing:
 							default_playlist = p.playlist_ids
