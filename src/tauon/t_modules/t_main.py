@@ -39735,7 +39735,10 @@ def main(holder: Holder) -> None:
 					bag.multi_playlist = []
 					tauonplaylist_jar = save[5]
 					for i, d in enumerate(tauonplaylist_jar):
-						p = TauonPlaylist(**d, file="") # UGLY PATCH
+						if "file" not in d:
+							d["file"] = ""
+						logging.info(f"currently loading playlist {d}")
+						p = TauonPlaylist(**d) # UGLY PATCH
 						bag.multi_playlist.append(p)
 						if i == bag.active_playlist_viewing:
 							default_playlist = p.playlist_ids
