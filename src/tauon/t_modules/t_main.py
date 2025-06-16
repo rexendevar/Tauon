@@ -13868,7 +13868,7 @@ class Tauon:
 		parent:       str = "",
 		hidden:       bool = False,
 		notify:       bool = True, # Allows us to generate initial playlist before worker thread is ready
-		file:         str | None = None, 
+		file:         str = "", 
 	) -> TauonPlaylist:
 		"""Generate a TauonPlaylist
 
