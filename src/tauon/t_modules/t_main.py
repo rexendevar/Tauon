@@ -39739,9 +39739,10 @@ def main(holder: Holder) -> None:
 					logging.info("didn't fail yet")
 					for i, d in enumerate(tauonplaylist_jar):
 						logging.info("here too")
+						logging.info(f"currently loading playlist {d}")
 						if not d.file or d.file == None:
 							d.file = ""
-						logging.info(f"currently loading playlist {d}")
+						
 						p = TauonPlaylist(**d) # UGLY PATCH
 						bag.multi_playlist.append(p)
 						if i == bag.active_playlist_viewing:
