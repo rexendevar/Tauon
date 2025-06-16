@@ -6546,16 +6546,11 @@ class Tauon:
 				logging.info(f"object mode: uuid is {final_playlist.uuid_int}")
 			except Exception as e:
 				logging.warning(e)
-
-			try:
-				logging.info(f"dictionary mode: uuid is {final_playlist["uuid_int"]}")
-			except Exception as e:
-				logging.warning(e)
 		if stations:
 			self.add_stations(stations, name)
 
 		# populate export fields - dirty code
-		id = self.pctl.pl_to_id(final_playlist)
+		id = final_playlist.uuid_int
 		export_entry = self.prefs.playlist_exports.get(id)
 		if not export_entry:
 			export_entry = copy.copy(self.export_playlist_box.default)
