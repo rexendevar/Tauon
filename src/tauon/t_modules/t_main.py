@@ -38,10 +38,10 @@ import gettext
 import glob
 import hashlib
 import io
+import importlib
 import json
 import locale as py_locale
 import logging
-
 #import magic
 import math
 
@@ -242,6 +242,12 @@ except ModuleNotFoundError:
 	logging.warning("Unable to import natsort, playlists may not sort as intended!")
 except Exception:
 	logging.exception("Unknown error trying to import natsort, playlists may not sort as intended!")
+
+try:
+	# pyLast needs to be imported AFTER setup_tls() else pyinstaller breaks - we reimport it later
+	import pylast
+except Exception:
+	logging.exception("pyLast module not found, Last.fm support will be disabled.")
 
 if TYPE_CHECKING:
 	from ctypes import CDLL
@@ -4050,7 +4056,7 @@ class LastFMapi:
 			remote_loved = track.get_userloved()
 
 			if track_object.title != track.get_correction() or track_object.artist != track.get_artist().get_correction():
-				logging.warning(f"Pylast/lastfm bug workaround. API thought {track_object.artist} - {track_object.title} loved status was: {remote_loved}")
+				logging.warning(f"pyLast/Last.fm bug workaround. API thought {track_object.artist} - {track_object.title} loved status was: {remote_loved}")
 				return
 
 			if remote_loved is None:
@@ -4657,7 +4663,7 @@ class Chunker:
 
 class MenuIcon:
 
-	def __init__(self, asset) -> None:
+	def __init__(self, asset: WhiteModImageAsset | LoadImageAsset) -> None:
 		self.asset = asset
 		self.colour = ColourRGBA(170, 170, 170, 255)
 		self.base_asset = None
@@ -4686,8 +4692,8 @@ class MenuItem:
 		"sub_menu_width",  # 14
 	]
 	def __init__(
-		self, title: str, func, render_func=None, no_exit=False, pass_ref=False, hint=None, icon=None, show_test=None,
-		pass_ref_deco: bool = False, disable_test=None, set_ref=None, is_sub_menu: bool = False, args=None, sub_menu_number=None, sub_menu_width: int = 0,
+		self, title: str, func, render_func=None, no_exit: bool = False, pass_ref: bool = False, hint=None, icon: MenuIcon | None = None, show_test: Callable[..., bool] | None = None,
+		pass_ref_deco: bool = False, disable_test: Callable[..., bool] | None = None, set_ref: int | str | None = None, is_sub_menu: bool = False, args=None, sub_menu_number=None, sub_menu_width: int = 0,
 	) -> None:
 		self.title = title
 		self.is_sub_menu = is_sub_menu
@@ -4773,7 +4779,7 @@ class Menu:
 		self.rescale()
 
 		self.reference: int = 0
-		self.items: list[MenuItem | None]= []
+		self.items: list[MenuItem | None] = []
 		self.subs: list[list[MenuItem]] = []
 		self.selected = -1
 		self.up = False
@@ -4818,10 +4824,10 @@ class Menu:
 			menu_item.render_func = self.deco
 		self.subs[sub_menu_index].append(menu_item)
 
-	def test_item_active(self, item) -> bool:
+	def test_item_active(self, item: MenuItem) -> bool:
 		return not (item.show_test is not None and item.show_test(1) is False)
 
-	def is_item_disabled(self, item):
+	def is_item_disabled(self, item: MenuItem) -> bool | None:
 		if item.disable_test is not None:
 			if item.pass_ref_deco:
 				return item.disable_test(self.reference)
@@ -22186,18 +22192,19 @@ class SubLyricsBox:
 class ExportPlaylistBox:
 
 	def __init__(self, tauon: Tauon) -> None:
-		self.tauon       = tauon
-		self.ddt         = tauon.ddt
-		self.gui         = tauon.gui
-		self.inp         = tauon.inp
-		self.coll        = tauon.coll
-		self.draw        = tauon.draw
-		self.pctl        = tauon.pctl
-		self.prefs       = tauon.prefs
-		self.fields      = tauon.fields
-		self.colours     = tauon.colours
-		self.pref_box    = tauon.pref_box
-		self.window_size = tauon.window_size
+		self.tauon        = tauon
+		self.ddt          = tauon.ddt
+		self.gui          = tauon.gui
+		self.inp          = tauon.inp
+		self.coll         = tauon.coll
+		self.draw         = tauon.draw
+		self.pctl         = tauon.pctl
+		self.prefs        = tauon.prefs
+		self.fields       = tauon.fields
+		self.colours      = tauon.colours
+		self.pref_box     = tauon.pref_box
+		self.window_size  = tauon.window_size
+		self.show_message = tauon.show_message
 		self.active = False
 		self.id = None
 		self.directory_text_box = TextBox2(tauon)
@@ -26273,7 +26280,7 @@ class TopPanel:
 
 		# ---
 		self.space_left = 0
-		self.tab_text_spaces = []
+		self.tab_text_spaces: list[int] = []
 		self.index_playing = -1
 		self.drag_zone_start_x = 300 * self.gui.scale
 
@@ -26492,8 +26499,8 @@ class TopPanel:
 
 		# List all tabs eligible to be shown
 		#logging.info("-------------")
-		ready_tabs = []
-		show_tabs = []
+		ready_tabs: list[int] = []
+		show_tabs: list[int] = []
 
 		if prefs.tabs_on_top or gui.radio_view:
 			if gui.radio_view:
@@ -26509,8 +26516,8 @@ class TopPanel:
 				self.prime_tab = min(self.prime_tab, len(pctl.multi_playlist) - 1)
 			max_w = window_size[0] - (x + right_space_es + round(34 * gui.scale))
 
-			left_tabs = []
-			right_tabs = []
+			left_tabs: list[int] = []
+			right_tabs: list[int] = []
 			if prefs.shuffle_lock:
 				for p in ready_tabs:
 					left_tabs.append(p)
@@ -26654,7 +26661,6 @@ class TopPanel:
 		if gui.radio_view:
 			target = pctl.radio_playlists
 		for i, tab in enumerate(target):
-
 			if not gui.radio_view:
 				if not prefs.tabs_on_top or prefs.shuffle_lock:
 					break
@@ -26705,7 +26711,6 @@ class TopPanel:
 
 				# Drag to move playlist
 				if self.inp.mouse_up and tauon.playlist_box.drag and coll_point(self.inp.mouse_up_position, f_rect):
-
 					if gui.radio_view:
 						pctl.move_radio_playlist(tauon.playlist_box.drag_on, i)
 					else:
@@ -36346,7 +36351,7 @@ def get_cert_path(holder: Holder) -> str:
 def setup_tls(holder: Holder) -> ssl.SSLContext:
 	"""TLS setup (needed for frozen installs)
 
-	This function has to be called BEFORE modules that init TLS context are imported or otherwise do so (like pylast)
+	This function has to be called BEFORE modules that init TLS context are imported or otherwise do so (like pylast - see https://github.com/Taiko2k/Tauon/issues/1442)
 	"""
 	# Set the TLS certificate path environment variable
 	cert_path = get_cert_path(holder)
@@ -39014,13 +39019,10 @@ def main(holder: Holder) -> None:
 	logging.info(f"Window size: {window_size}; Logical size: {logical_size}")
 
 	tls_context = setup_tls(holder)
-	try:
-		# Pylast needs to be imported AFTER setup_tls() else pyinstaller breaks
-		import pylast
-		last_fm_enable = True
-	except Exception:
-		logging.exception("PyLast module not found, last fm will be disabled.")
-		last_fm_enable = False
+	last_fm_enable = is_module_loaded("pylast")
+	if last_fm_enable:
+		# pyLast needs to be reimported AFTER setup_tls(), else pyinstaller breaks
+		importlib.reload(pylast)
 
 	discord_allow = is_module_loaded("lynxpresence", "ActivityType")
 	ctypes = sys.modules.get("ctypes")  # Fetch from loaded modules
