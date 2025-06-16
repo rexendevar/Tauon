@@ -6538,12 +6538,31 @@ class Tauon:
 						logging.info("not found")
 		# & then add it to the list
 		if playlist:
-			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path, auto=True, type="m3u")
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path)
 			logging.info(f"new playlist just dropped\n{final_playlist}")
 			self.pctl.multi_playlist.append(
 				final_playlist)
+			try:
+				logging.info(f"object mode: uuid is {final_playlist.uuid_int}")
+			except Exception as e:
+				logging.warning(e)
+
+			try:
+				logging.info(f"dictionary mode: uuid is {final_playlist["uuid_int"]}")
+			except Exception as e:
+				logging.warning(e)
 		if stations:
 			self.add_stations(stations, name)
+
+		# populate export fields - dirty code
+		id = self.pctl.pl_to_id(final_playlist)
+		export_entry = self.prefs.playlist_exports.get(id)
+		if not export_entry:
+			export_entry = copy.copy(self.export_playlist_box.default)
+		export_entry["type"] = "m3u"
+		export_entry["auto"] = True
+		export_entry["relative"] = True # note for flynn do logic here
+		self.prefs.playlist_exports[id] = export_entry
 
 		self.gui.update = 1
 
@@ -7975,6 +7994,7 @@ class Tauon:
 	#	 return [self.colours.menu_text, self.colours.menu_background, line]
 
 	def export_m3u(self, pl: int, direc: str | None = None, relative: bool = False, show: bool = True) -> int | str:
+		"""exports an m3u file from a Playlist dictionary in multi_playlist."""
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
@@ -22252,6 +22272,12 @@ class ExportPlaylistBox:
 		current = self.prefs.playlist_exports.get(self.id)
 		if not current:
 			current = copy.copy(self.default)
+
+		# note for flynn
+		# self.id == the playlist uuid
+		# fetch the original playlist based on uuid
+		# if there's a path variable, auto populate fields:
+		# auto = True, type = "m3u", 
 
 		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Export Playlist"), colours.grey(230), 213)
 
