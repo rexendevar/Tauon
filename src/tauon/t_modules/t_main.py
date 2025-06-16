@@ -39730,12 +39730,16 @@ def main(holder: Holder) -> None:
 			bag.playlist_playing = save[2]
 			bag.active_playlist_viewing = save[3]
 			bag.playlist_view_position = save[4]
+			logging.info("definitely got this far")
 			if save[5] is not None:
 				if db_version > 68:
 					bag.multi_playlist = []
+					logging.info("got here as well")
 					tauonplaylist_jar = save[5]
+					logging.info("didn't fail yet")
 					for i, d in enumerate(tauonplaylist_jar):
-						if not d.file:
+						logging.info("here too")
+						if not d.file or d.file == None:
 							d.file = ""
 						logging.info(f"currently loading playlist {d}")
 						p = TauonPlaylist(**d) # UGLY PATCH
