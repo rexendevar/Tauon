@@ -6531,8 +6531,10 @@ class Tauon:
 						logging.info("not found")
 
 		if playlist:
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, file=path)
+			logging.info(f"new playlist just dropped\n{final_playlist}")
 			self.pctl.multi_playlist.append(
-				self.pl_gen(title=name, playlist_ids=playlist))
+				final_playlist)
 		if stations:
 			self.add_stations(stations, name)
 
@@ -7969,12 +7971,16 @@ class Tauon:
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
-
 		if not direc:
 			direc = str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
 		target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
+		
+		if self.pctl.multi_playlist[pl].file:
+			# if the playlist has a file attribute:
+			target = self.pctl.multi_playlist[pl].file
+			logging.info(f"will export to filepath {target}")
 
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
@@ -13862,6 +13868,7 @@ class Tauon:
 		parent:       str = "",
 		hidden:       bool = False,
 		notify:       bool = True, # Allows us to generate initial playlist before worker thread is ready
+		file:         str | None = None, 
 	) -> TauonPlaylist:
 		"""Generate a TauonPlaylist
 
@@ -13873,7 +13880,7 @@ class Tauon:
 			self.pctl.notify_change()
 
 		#return copy.deepcopy([title, playing, playlist, position, hide_title, selected, uid_gen(), [], hidden, False, parent, False])
-		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False)
+		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False, file=file)
 
 	def open_uri(self, uri: str) -> None:
 		logging.info("OPEN URI")
