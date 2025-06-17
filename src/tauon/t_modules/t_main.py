@@ -22345,6 +22345,7 @@ class ExportPlaylistBox:
 		if current["full_path_mode"]:
 			original_playlist.playlist_file = self.directory_text_box.text
 			if extension != ".xspf" or extension != ".m3u8" or not extension.endswith(".m3u"):
+				current["type"] = "broken"
 				ddt.text((x + round(160 * gui.scale), y + round(14 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
 			elif extension == ".xspf":
 				current["type"] = "xspf"
@@ -22369,8 +22370,13 @@ class ExportPlaylistBox:
 
 		self.prefs.playlist_exports[self.id] = current
 
-		if self.draw.button(_("Export"), x, y, press=gui.level_2_click):
+		if self.draw.button(_("Export"), x, y, press=gui.level_2_click) and current["type"] != "broken":
 			self.run_export(current, self.id, warnings=True)
+		else:
+			self.show_message(
+				_("Export error"),
+				"Select a format and try again.",
+				mode = "warning")
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
