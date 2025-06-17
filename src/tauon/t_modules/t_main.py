@@ -22333,7 +22333,8 @@ class ExportPlaylistBox:
 			current["type"] = "m3u"
 
 		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Enable two-way file sync (requires full path)", gui.level_2_click)
-		if self.draw.button(x + round(385 * gui.scale), y, _("?")):
+		if self.draw.button(_("?"), x + round(385 * gui.scale), y, press=gui.level_2_click):
+		# if self.draw.button(x + round(385 * gui.scale), y, _("?")):
 				self.show_message(
 					_("New feature!"),
 					"If checked, this playlist will export to the exact file shown in the text box.",
@@ -22344,7 +22345,7 @@ class ExportPlaylistBox:
 		extension = self.directory_text_box.text[-5:].lower()
 		if current["full_path_mode"]:
 			original_playlist.playlist_file = self.directory_text_box.text
-			if extension != ".xspf" or extension != ".m3u8" or not extension.endswith(".m3u"):
+			if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
 				current["type"] = "broken"
 				ddt.text((x + round(160 * gui.scale), y + round(14 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
 			elif extension == ".xspf":
@@ -22376,7 +22377,7 @@ class ExportPlaylistBox:
 			else:
 				self.show_message(
 					_("Export error"),
-					"Select a format and try again.",
+					"Correct your filepath or select a format, then try again.",
 					mode = "warning")
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
