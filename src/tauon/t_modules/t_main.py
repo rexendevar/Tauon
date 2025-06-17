@@ -22259,7 +22259,12 @@ class ExportPlaylistBox:
 		colours = self.colours
 		if not self.active:
 			return
-		original_playlist = self.pctl.id_to_pl(self.id)
+		logging.info(f"flynn self.id is {self.id}")
+		# id_to_pl wasn't working so i copy pasted it
+		for i, item in enumerate(self.pctl.multi_playlist):
+			if item.uuid_int == self.id:
+				original_playlist = item
+		logging.info(f"flynn playlist is {original_playlist}")
 
 		w = 500 * gui.scale
 		h = 220 * gui.scale
