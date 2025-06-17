@@ -22254,13 +22254,13 @@ class ExportPlaylistBox:
 				del self.prefs.playlist_exports[key]
 
 	def render(self) -> None:
+		# runs every frame the menu is open
 		gui = self.gui
 		ddt = self.ddt
 		colours = self.colours
 		if not self.active:
 			return
 		logging.info(f"flynn self.id is {self.id}")
-		# id_to_pl wasn't working so i copy pasted it
 		for i, item in enumerate(self.pctl.multi_playlist):
 			if item.uuid_int == self.id:
 				original_playlist = item
@@ -22285,8 +22285,7 @@ class ExportPlaylistBox:
 			current = copy.copy(self.default)
 
 		try:
-			logging.info(current["full_path_mode"])
-			logging.info("flynn try worked in load")
+			current["full_path_mode"]
 		except:
 			current["full_path_mode"] = False
 
@@ -22314,6 +22313,8 @@ class ExportPlaylistBox:
 		ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
 		if not current["full_path_mode"]:
 			self.directory_text_box.text = current["path"]
+		elif not original_playlist.playlist_file or original_playlist.playlist_file == "":
+			self.directory_text_box.text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
 		# otherwise show playlist_entry.file_path
@@ -22321,7 +22322,9 @@ class ExportPlaylistBox:
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
 		# also create a new checkbox
-		current["path"] = self.directory_text_box.text
+		if current["full_path_mode"]:
+			original_playlist.playlist_file = self.directory_text_box.text
+			current["path"] = self.directory_text_box.text
 
 
 		y += round(30 * gui.scale)
@@ -22330,10 +22333,8 @@ class ExportPlaylistBox:
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
 
-		if self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"] == True, "Use full path (instead of just directory)", gui.level_2_click):
-			current["full_path_mode"] = True
-		else:
-			original_playlist.playlist_file = ""
+		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Use full path (instead of just directory)", gui.level_2_click)
+		ddt.text((x + round(160 * gui.scale), y + 12 * gui.scale), _("Remember to include the extension!"), colours.grey(230), 11)
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
 		y += round(35 * gui.scale)
