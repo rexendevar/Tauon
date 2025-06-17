@@ -7997,7 +7997,9 @@ class Tauon:
 	#	 return [self.colours.menu_text, self.colours.menu_background, line]
 
 	def export_m3u(self, pl: int, direc: str | None = None, relative: bool = False, show: bool = True) -> int | str:
-		"""exports an m3u file from a Playlist dictionary in multi_playlist."""
+		"""Exports an m3u file from a Playlist dictionary in multi_playlist.
+		If the playlist contains a playlist_file field, it will export to that file;
+		otherwise it will export to the directory given as an argument."""
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
@@ -8017,7 +8019,7 @@ class Tauon:
 			target
 		except:
 			logging.error("export_m3u: something's gone seriously wrong.")
-			break
+			return 1
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
 		for number in self.pctl.multi_playlist[pl].playlist_ids:
