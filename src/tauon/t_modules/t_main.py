@@ -1912,15 +1912,21 @@ class PlayerCtl:
 		logging.info(f"flynn check for reload playlist")
 		new_playlist = self.multi_playlist[self.active_playlist_viewing]
 		export_entry = self.prefs.playlist_exports.get(id)
-		if export_entry["full_path_mode"]:
-			logging.info("full path mode here")
-			if os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
-				logging.info("needs to update")
-				playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
-				new_playlist.playlist_ids = playlist
-				logging.info("successfully updated")
-				new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
-				logging.info(f"new file size is {new_playlist.file_size}")
+		try:
+			export_entry["full_path_mode"]
+		except:
+			logging.info("this playlist is too old to auto import")
+			pass 
+		else:
+			if export_entry["full_path_mode"]:
+				logging.info("full path mode here")
+				if os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
+					logging.info("needs to update")
+					playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
+					new_playlist.playlist_ids = playlist
+					logging.info("successfully updated")
+					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
+					logging.info(f"new file size is {new_playlist.file_size}")
 
 		code = self.gen_codes.get(id)
 		if code is not None and self.tauon.check_auto_update_okay(code, self.active_playlist_viewing):
