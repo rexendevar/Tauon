@@ -6573,7 +6573,7 @@ class Tauon:
 		if playlist:
 			filesize = os.path.getsize(path)
 			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path, file_size=filesize)
-			logging.info(f"new playlist just dropped\n{final_playlist}")
+			logging.info(f"Imported m3u file as {final_playlist.title}")
 			self.pctl.multi_playlist.append(
 				final_playlist)
 			try:
