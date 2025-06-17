@@ -22370,13 +22370,14 @@ class ExportPlaylistBox:
 
 		self.prefs.playlist_exports[self.id] = current
 
-		if self.draw.button(_("Export"), x, y, press=gui.level_2_click) and current["type"] != "broken":
-			self.run_export(current, self.id, warnings=True)
-		else:
-			self.show_message(
-				_("Export error"),
-				"Select a format and try again.",
-				mode = "warning")
+		if self.draw.button(_("Export"), x, y, press=gui.level_2_click):
+			if current["type"] != "broken":
+				self.run_export(current, self.id, warnings=True)
+			else:
+				self.show_message(
+					_("Export error"),
+					"Select a format and try again.",
+					mode = "warning")
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
