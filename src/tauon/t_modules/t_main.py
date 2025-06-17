@@ -22333,7 +22333,7 @@ class ExportPlaylistBox:
 			current["type"] = "m3u"
 
 		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Enable two-way file sync (requires full path)", gui.level_2_click)
-		if self.button(x + round(385 * gui.scale), y, _("?")):
+		if self.draw.button(x + round(385 * gui.scale), y, _("?")):
 				self.show_message(
 					_("New feature!"),
 					"If checked, this playlist will export to the exact file shown in the text box.",
