@@ -6467,7 +6467,14 @@ class Tauon:
 			self.enter_radio_view()
 
 	def parse_m3u(self, path: str) -> list:
-		"""read an m3u file to retrieve playlist contents"""
+		"""read specified .m3u playlist file, return list of track IDs/stations"""
+		
+		playlist: list[int] = []
+		stations: list[RadioStation] = []
+
+		titles:        dict[str, TrackClass] = {}
+		location_dict: dict[str, TrackClass] = {}
+
 		with Path(path).open(encoding="utf-8") as file:
 			lines = file.readlines()
 
@@ -6527,20 +6534,15 @@ class Tauon:
 						logging.info("found title")
 					else:
 						logging.info("not found")
+		return playlist, stations
 
 	def load_m3u(self, path: str) -> None:
 		"""import an m3u file and create a new Tauon playlist for it"""
 		name = os.path.basename(path)[:-4].rstrip(".")
-		playlist: list[int] = []
-		stations: list[RadioStation] = []
-
-		location_dict: dict[str, TrackClass] = {}
-		titles:        dict[str, TrackClass] = {}
-
 		if not os.path.isfile(path):
 			return
 		
-		playlist = self.parse_m3u(path)
+		playlist, stations = self.parse_m3u(path)
 		
 		# & then add it to the list
 		if playlist:
