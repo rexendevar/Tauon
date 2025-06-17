@@ -8063,7 +8063,19 @@ class Tauon:
 			if not os.path.exists(direc):
 				os.makedirs(direc)
 
-		target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".xspf")
+		if direc != "see playlist_file":
+			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".xspf")
+		
+		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
+			# if the playlist has a file attribute:
+			target = self.pctl.multi_playlist[pl].playlist_file
+			logging.info(f"Playlist will export to filepath {target}")
+			# file attribute is removed if full path mode is disabled
+		try:
+			target
+		except:
+			logging.error("export_xspf: something's gone seriously wrong.")
+			return 1
 
 		xspf_root = ET.Element("playlist", version="1", xmlns="http://xspf.org/ns/0/")
 		xspf_tracklist_tag = ET.SubElement(xspf_root, "trackList")
