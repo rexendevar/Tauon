@@ -6492,7 +6492,7 @@ class Tauon:
 		if not self.gui.radio_view:
 			self.enter_radio_view()
 
-	def parse_m3u(self, path: str) -> list:
+	def parse_m3u(self, path: str) -> tuple[ list[int], list[RadioStation] ]:
 		"""read specified .m3u playlist file, return list of track IDs/stations"""
 		playlist: list[int] = []
 		stations: list[RadioStation] = []
@@ -8411,6 +8411,7 @@ class Tauon:
 
 		ls = self.stats_gen.artist_list
 		for i, item in enumerate(ls[:50]):
+			logging.info(item)
 			line += str(i + 1) + ".\t" + self.stt2(item[1]) + "\t" + item[0] + "\n"
 
 		line += "\n\n" + f"-------------- {_('Top Albums')} --------------------" + "\n\n"
