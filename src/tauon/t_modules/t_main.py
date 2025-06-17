@@ -1909,6 +1909,19 @@ class PlayerCtl:
 
 		id = self.multi_playlist[self.active_playlist_viewing].uuid_int
 
+		logging.info(f"flynn check for reload playlist")
+		new_playlist = self.multi_playlist[self.active_playlist_viewing]
+		export_entry = self.prefs.playlist_exports.get(id)
+		if export_entry["full_path_mode"]:
+			logging.info("full path mode here")
+			if os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
+				logging.info("needs to update")
+				playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
+				new_playlist.playlist_ids = playlist
+				logging.info("successfully updated")
+				new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
+				logging.info(f"new file size is {new_playlist.file_size}")
+
 		code = self.gen_codes.get(id)
 		if code is not None and self.tauon.check_auto_update_okay(code, self.active_playlist_viewing):
 			self.gui.regen_single_id = id
@@ -6468,7 +6481,7 @@ class Tauon:
 
 	def parse_m3u(self, path: str) -> list:
 		"""read specified .m3u playlist file, return list of track IDs/stations"""
-		
+		logging.info("flynn it did run the parse at least")
 		playlist: list[int] = []
 		stations: list[RadioStation] = []
 
@@ -15057,7 +15070,7 @@ class Tauon:
 				if self.gui.album_tab_mode:
 					self.show_in_gal(self.pctl.selected_in_playlist, silent=True)
 
-	def check_auto_update_okay(self, code, pl=None):
+	def check_auto_update_okay(self, code, pl=None): # note for flynn - could be a good way to check
 		try:
 			cmds = shlex.split(code)
 		except Exception:
