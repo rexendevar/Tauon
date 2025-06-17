@@ -8005,14 +8005,19 @@ class Tauon:
 			direc = str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
-		target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
+		if direc != "see playlist_file":
+			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
 		
 		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
 			# if the playlist has a file attribute:
 			target = self.pctl.multi_playlist[pl].playlist_file
-			logging.info(f"will export to filepath {target}")
+			logging.info(f"Playlist will export to filepath {target}")
 			# file attribute is removed if full path mode is disabled
-
+		try:
+			target
+		except:
+			logging.error("export_m3u: something's gone seriously wrong.")
+			break
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
 		for number in self.pctl.multi_playlist[pl].playlist_ids:
@@ -22332,12 +22337,11 @@ class ExportPlaylistBox:
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
 
-		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Enable two-way file sync (requires full path)", gui.level_2_click)
-		if self.draw.button(_("?"), x + round(385 * gui.scale), y, press=gui.level_2_click):
+		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "2-way file sync (requires full path)", gui.level_2_click)
+		if self.draw.button(_("?"), x + round(405 * gui.scale), y - round(3* gui.scale), press=gui.level_2_click):
 		# if self.draw.button(x + round(385 * gui.scale), y, _("?")):
 				self.show_message(
-					_("New feature!"),
-					"If checked, this playlist will export to the exact file shown in the text box.",
+					"If checked, this playlist will export directly to the specified file.",
 					"The playlist will also automatically IMPORT from the same file when it changes.",
 					"Useful for syncing your playlists. Don't forget the file extension.")
 		
@@ -22382,11 +22386,18 @@ class ExportPlaylistBox:
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
-		path = current["path"]
-		if not os.path.isdir(path):
-			if warnings:
-				self.show_message(_("Directory does not exist"), mode="warning")
-			return
+		
+		for i, item in enumerate(self.pctl.multi_playlist):
+			if item.uuid_int == id:
+				original_playlist = item
+		if not original_playlist.playlist_file or original_playlist.playlist_file == "":
+			path = current["path"]
+			if not os.path.isdir(path):
+				if warnings:
+					self.show_message(_("Directory does not exist"), mode="warning")
+				return
+		else:
+			path = "see playlist_file"
 		target = ""
 		if current["type"] == "xspf":
 			target = self.tauon.export_xspf(self.pctl.id_to_pl(id), direc=path, relative=current["relative"], show=False)
@@ -22397,6 +22408,7 @@ class ExportPlaylistBox:
 			self.show_message(_("Playlist exported"), target, mode="done")
 
 class SearchOverlay:
+
 
 	def __init__(self, tauon: Tauon) -> None:
 		self.tauon        = tauon
