@@ -8011,6 +8011,7 @@ class Tauon:
 			# if the playlist has a file attribute:
 			target = self.pctl.multi_playlist[pl].playlist_file
 			logging.info(f"will export to filepath {target}")
+			# file attribute is removed if full path mode is disabled
 
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
@@ -22245,6 +22246,7 @@ class ExportPlaylistBox:
 		self.active = True
 		self.gui.box_over = True
 		self.id = self.pctl.pl_to_id(playlist)
+		self.has_it_run_yet = False
 
 		# Prune old enteries
 		ids = []
@@ -22319,14 +22321,10 @@ class ExportPlaylistBox:
 			self.directory_text_box.text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
-		# otherwise show playlist_entry.file_path
 
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
-		# also create a new checkbox
-
-
 
 		y += round(30 * gui.scale)
 		if self.pref_box.toggle_square(x, y, current["type"] == "xspf", "XSPF", gui.level_2_click):
@@ -22334,13 +22332,27 @@ class ExportPlaylistBox:
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
 
-		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Use full path (instead of just directory)", gui.level_2_click)
-		ddt.text((x + round(160 * gui.scale), y + 12 * gui.scale), _("Remember to include the extension!\nDisabling this will also disable auto-import."), colours.grey(230), 11)
-
+		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Enable two-way file sync (requires full path)", gui.level_2_click)
+		if self.button(x + round(385 * gui.scale), y, _("?")):
+				self.show_message(
+					_("New feature!"),
+					"If checked, this playlist will export to the exact file shown in the text box.",
+					"The playlist will also automatically IMPORT from the same file when it changes.",
+					"Useful for syncing your playlists. Don't forget the file extension.")
+		
+		# save changes + display warning if path is invalid
+		extension = self.directory_text_box.text[-5:].lower()
 		if current["full_path_mode"]:
 			original_playlist.playlist_file = self.directory_text_box.text
+			if extension != ".xspf" or extension != ".m3u8" or not extension.endswith(".m3u"):
+				ddt.text((x + round(160 * gui.scale), y + round(14 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
+			elif extension == ".xspf":
+				current["type"] = "xspf"
+			else:
+				current["type"] = "m3u"
 		else:	
 			current["path"] = self.directory_text_box.text
+			original_playlist.playlist_file = ""
 
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
