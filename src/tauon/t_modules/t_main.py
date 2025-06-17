@@ -6466,17 +6466,8 @@ class Tauon:
 		if not self.gui.radio_view:
 			self.enter_radio_view()
 
-	def load_m3u(self, path: str) -> None:
-		name = os.path.basename(path)[:-4].rstrip(".")
-		playlist: list[int] = []
-		stations: list[RadioStation] = []
-
-		location_dict: dict[str, TrackClass] = {}
-		titles:        dict[str, TrackClass] = {}
-
-		if not os.path.isfile(path):
-			return
-
+	def parse_m3u(self, path: str) -> list:
+		"""read an m3u file to retrieve playlist contents"""
 		with Path(path).open(encoding="utf-8") as file:
 			lines = file.readlines()
 
@@ -6536,9 +6527,25 @@ class Tauon:
 						logging.info("found title")
 					else:
 						logging.info("not found")
+
+	def load_m3u(self, path: str) -> None:
+		"""import an m3u file and create a new Tauon playlist for it"""
+		name = os.path.basename(path)[:-4].rstrip(".")
+		playlist: list[int] = []
+		stations: list[RadioStation] = []
+
+		location_dict: dict[str, TrackClass] = {}
+		titles:        dict[str, TrackClass] = {}
+
+		if not os.path.isfile(path):
+			return
+		
+		playlist = self.parse_m3u(path)
+		
 		# & then add it to the list
 		if playlist:
-			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path)
+			filesize = os.path.getsize(path)
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path, file_size=filesize)
 			logging.info(f"new playlist just dropped\n{final_playlist}")
 			self.pctl.multi_playlist.append(
 				final_playlist)
@@ -6557,6 +6564,7 @@ class Tauon:
 		export_entry["type"] = "m3u"
 		export_entry["auto"] = True
 		export_entry["relative"] = True # note for flynn do logic here
+		export_entry["full_path_mode"] = True
 		self.prefs.playlist_exports[id] = export_entry
 
 		self.gui.update = 1
@@ -13891,6 +13899,7 @@ class Tauon:
 		hidden:       bool = False,
 		notify:       bool = True, # Allows us to generate initial playlist before worker thread is ready
 		playlist_file:str = "", 
+		file_size:    int = 0,
 	) -> TauonPlaylist:
 		"""Generate a TauonPlaylist
 
@@ -13902,7 +13911,7 @@ class Tauon:
 			self.pctl.notify_change()
 
 		#return copy.deepcopy([title, playing, playlist, position, hide_title, selected, uid_gen(), [], hidden, False, parent, False])
-		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False, playlist_file=playlist_file)
+		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False, playlist_file=playlist_file, file_size=file_size)
 
 	def open_uri(self, uri: str) -> None:
 		logging.info("OPEN URI")
@@ -22228,6 +22237,7 @@ class ExportPlaylistBox:
 			"type": "xspf",
 			"relative": False,
 			"auto": False,
+			"full_path_mode": False,
 		}
 
 	def activate(self, playlist: int) -> None:
@@ -22249,6 +22259,7 @@ class ExportPlaylistBox:
 		colours = self.colours
 		if not self.active:
 			return
+		original_playlist = self.pctl.id_to_pl(self.id)
 
 		w = 500 * gui.scale
 		h = 220 * gui.scale
@@ -22268,6 +22279,16 @@ class ExportPlaylistBox:
 		if not current:
 			current = copy.copy(self.default)
 
+		try:
+			logging.info(current["full_path_mode"])
+			logging.info("flynn try worked in load")
+		except:
+			current["full_path_mode"] = False
+
+		if original_playlist.playlist_file and original_playlist.playlist_file != "":
+			current["full_path_mode"] = True
+		logging.info(f"flynn entry {current}")
+
 		# note for flynn
 		# self.id == the playlist uuid
 		# fetch the original playlist based on uuid
@@ -22279,24 +22300,36 @@ class ExportPlaylistBox:
 		x += round(15 * gui.scale)
 		y += round(25 * gui.scale)
 
-		ddt.text((x, y + 8 * gui.scale), _("Save directory"), colours.grey(230), 11)
+		ddt.text((x, y + 8 * gui.scale), _("Save location"), colours.grey(230), 11)
 		y += round(30 * gui.scale)
 
 		rect1 = (x, y, round(450 * gui.scale), round(16 * gui.scale))
 		self.fields.add(rect1)
 		# ddt.rect(rect1, [40, 40, 40, 255], True)
 		ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
-		self.directory_text_box.text = current["path"]
+		if not current["full_path_mode"]:
+			self.directory_text_box.text = current["path"]
+		else:
+			self.directory_text_box.text = original_playlist.playlist_file
+		# otherwise show playlist_entry.file_path
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
+		# also create a new checkbox
 		current["path"] = self.directory_text_box.text
+
 
 		y += round(30 * gui.scale)
 		if self.pref_box.toggle_square(x, y, current["type"] == "xspf", "XSPF", gui.level_2_click):
 			current["type"] = "xspf"
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
+
+		if self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"] == True, "Use full path (instead of just directory)", gui.level_2_click):
+			current["full_path_mode"] = True
+		else:
+			original_playlist.playlist_file = ""
+
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
 		y += round(35 * gui.scale)
 		current["relative"] = self.pref_box.toggle_square(
