@@ -1924,7 +1924,7 @@ class PlayerCtl:
 					logging.warning("This file will be unlinked.")
 
 					export_entry["full_path_mode"] = False
-					self.prefs.playlist_exports.get(id) = export_entry
+					self.prefs.playlist_exports[id] = export_entry
 					new_playlist.playlist_file = ""
 					new_playlist.file_size = 0
 
