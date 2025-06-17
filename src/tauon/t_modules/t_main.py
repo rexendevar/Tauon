@@ -1909,24 +1909,31 @@ class PlayerCtl:
 
 		id = self.multi_playlist[self.active_playlist_viewing].uuid_int
 
-		logging.info(f"flynn check for reload playlist")
+		# check whether playlist should be auto reloaded
 		new_playlist = self.multi_playlist[self.active_playlist_viewing]
 		export_entry = self.prefs.playlist_exports.get(id)
 		try:
 			export_entry["full_path_mode"]
 		except:
-			logging.info("this playlist is too old to auto import")
 			pass 
+
 		else:
 			if export_entry["full_path_mode"]:
-				logging.info("full path mode here")
-				if os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
-					logging.info("needs to update")
+				if not os.path.exists(new_playlist.playlist_file):
+					logging.warning(f"Playlist \"{new_playlist.title}\" is linked to a file that no longer exists.")
+					logging.warning("This file will be unlinked.")
+
+					export_entry["full_path_mode"] = False
+					self.prefs.playlist_exports.get(id) = export_entry
+					new_playlist.playlist_file = ""
+					new_playlist.file_size = 0
+
+				elif os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
 					playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
 					new_playlist.playlist_ids = playlist
-					logging.info("successfully updated")
 					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
-					logging.info(f"new file size is {new_playlist.file_size}")
+					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
+
 
 		code = self.gen_codes.get(id)
 		if code is not None and self.tauon.check_auto_update_okay(code, self.active_playlist_viewing):
@@ -6453,7 +6460,7 @@ class Tauon:
 			#		 self.pctl.star_library[newkey] = copy.deepcopy(self.pctl.star_library[key])
 			#		 # del self.pctl.star_library[key]
 
-	def transfer_tracks(self, index: int, mode: int, to: int) -> None: # note for flynn
+	def transfer_tracks(self, index: int, mode: int, to: int) -> None:
 		todo: list[int] = []
 
 		if mode == 0:
@@ -6487,7 +6494,6 @@ class Tauon:
 
 	def parse_m3u(self, path: str) -> list:
 		"""read specified .m3u playlist file, return list of track IDs/stations"""
-		logging.info("flynn it did run the parse at least")
 		playlist: list[int] = []
 		stations: list[RadioStation] = []
 
@@ -22335,7 +22341,6 @@ class ExportPlaylistBox:
 
 			if original_playlist.playlist_file and original_playlist.playlist_file != "":
 				current["full_path_mode"] = True
-			logging.info(f"flynn running window on {current} should only show once")
 		self.has_it_run_yet = True
 
 
