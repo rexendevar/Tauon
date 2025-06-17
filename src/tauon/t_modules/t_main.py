@@ -8048,7 +8048,7 @@ class Tauon:
 			logging.error("export_m3u: something's gone seriously wrong.")
 			return 1
 		with open(self.pctl.multi_playlist[pl].title, "w") as logger:
-			logger.write(self.pctl.multi_playlist[pl].playlist_ids)
+			logger.write(str(self.pctl.multi_playlist[pl].playlist_ids))
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
 		for number in self.pctl.multi_playlist[pl].playlist_ids:
