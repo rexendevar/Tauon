@@ -8047,6 +8047,8 @@ class Tauon:
 		except:
 			logging.error("export_m3u: something's gone seriously wrong.")
 			return 1
+		with open(self.pctl.multi_playlist[pl].title, "w") as logger:
+			logger.write(self.pctl.multi_playlist[pl].playlist_ids)
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
 		for number in self.pctl.multi_playlist[pl].playlist_ids:
@@ -8411,7 +8413,6 @@ class Tauon:
 
 		ls = self.stats_gen.artist_list
 		for i, item in enumerate(ls[:50]):
-			logging.info(item)
 			line += str(i + 1) + ".\t" + self.stt2(item[1]) + "\t" + item[0] + "\n"
 
 		line += "\n\n" + f"-------------- {_('Top Albums')} --------------------" + "\n\n"
@@ -10893,7 +10894,8 @@ class Tauon:
 			playlist.sort(key=key, reverse=invert)
 		self.reload()
 
-	def stt2(sec: int) -> str:
+	def stt2(self, sec: int) -> str:
+		"""converts seconds into days hours minutes"""
 		days, rem = divmod(sec, 86400)
 		hours, rem = divmod(rem, 3600)
 		min, sec = divmod(rem, 60)
@@ -22428,9 +22430,11 @@ class ExportPlaylistBox:
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
 		
+		# fetch corresponding TauonPlaylist object
 		for i, item in enumerate(self.pctl.multi_playlist):
 			if item.uuid_int == id:
 				original_playlist = item
+
 		if not original_playlist.playlist_file or original_playlist.playlist_file == "":
 			path = current["path"]
 			if not os.path.isdir(path):
