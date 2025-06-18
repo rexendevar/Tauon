@@ -22292,7 +22292,7 @@ class ExportPlaylistBox:
 		self.directory_text_box = TextBox2(tauon)
 		self.default = {
 			"path": str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
-			"type": "xspf",
+			"type": "m3u",
 			"relative": False,
 			"auto": False,
 			"auto_imp": False,
@@ -22361,6 +22361,8 @@ class ExportPlaylistBox:
 
 			if original_playlist.playlist_file and original_playlist.playlist_file != "":
 				current["full_path_mode"] = True
+			if current["type"] == "broken":
+				current["type"] = "m3u"
 		self.has_it_run_yet = True
 
 
