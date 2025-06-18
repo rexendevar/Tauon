@@ -1930,7 +1930,9 @@ class PlayerCtl:
 
 				elif os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
 					playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
-					new_playlist.playlist_ids = playlist
+					new_playlist.playlist_ids = playlist.copy()
+					with open(new_playlist.title + "_import.txt", "w") as logger:
+						logger.write(str(new_playlist.playlist_ids))
 					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
 					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
 
@@ -8030,11 +8032,12 @@ class Tauon:
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
-		if not direc:
+		
+		if not direc or direc == "see playlist_file":
 			direc = str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
-		if direc != "see playlist_file":
+		else:
 			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
 		
 		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
@@ -8047,7 +8050,7 @@ class Tauon:
 		except:
 			logging.error("export_m3u: something's gone seriously wrong.")
 			return 1
-		with open(self.pctl.multi_playlist[pl].title, "w") as logger:
+		with open(self.pctl.multi_playlist[pl].title + "_export.log", "w") as logger:
 			logger.write(str(self.pctl.multi_playlist[pl].playlist_ids))
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
