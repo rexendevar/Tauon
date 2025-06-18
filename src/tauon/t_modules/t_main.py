@@ -1935,6 +1935,7 @@ class PlayerCtl:
 						logger.write(str(new_playlist.playlist_ids))
 					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
 					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
+			self.render_playlist()
 
 
 		code = self.gen_codes.get(id)
