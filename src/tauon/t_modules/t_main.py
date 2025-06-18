@@ -6696,8 +6696,8 @@ class Tauon:
 					for track in top:
 						if track.tag.endswith("track"):
 							for field in track:
-								logging.info(field.tag)
-								logging.info(field.text)
+								# logging.info(field.tag)
+								# logging.info(field.text)
 								if "title" in field.tag and field.text:
 									b["title"] = field.text
 								if "location" in field.tag and field.text:
@@ -22431,60 +22431,79 @@ class ExportPlaylistBox:
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
 
+		old_type = current["type"]
 		y += round(30 * gui.scale)
 		if self.pref_box.toggle_square(x, y, current["type"] == "xspf", "XSPF", gui.level_2_click):
 			current["type"] = "xspf"
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
+		assert_type_this_frame = old_type != current["type"] # did the user change the file type this frame?
 
 		extension = self.directory_text_box.text[-5:].lower()
 		if extension == ".xspf" or extension == ".m3u8" or extension.endswith(".m3u"):
 			current["full_path_mode"] = True
 
+		old_fpm = current["full_path_mode"]
 		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], _("Full path (not just directory)"), gui.level_2_click)
-		if self.draw.button(_("?"), x + round(405 * gui.scale), y - (2*gui.scale), press=gui.level_2_click):
+		assert_fpm_this_frame = old_fpm != current["full_path_mode"] # did the user change fpm setting this frame?
+
+		ww = ddt.get_text_w(_("Full path (not just directory)"), 211) + 8
+		if self.draw.button(_("?"), x + round(405 * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
 			self.show_message(
 					_("Determines where the playlist file is saved"),
-					_("In full path mode, the playlist will write to the \x1B[3mexact file\x1B[0m shown in the box. Otherwise,"),
-					_("the box will refer to its \x1B[3mcontaining folder\x1B[3m, and the filename will be the playlist title."))
+					_("In full path mode, the playlist will write to the EXACT FILE shown in the box. Otherwise,"),
+					_("the box will refer to its CONTAINING FOLDER, and the filename will be the playlist title."))
 
 		if current["full_path_mode"]:
-			original_playlist.playlist_file = self.directory_text_box.text
-			if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
-				current["type"] = "broken"
-				ddt.text((x + round(160 * gui.scale), y + round(16 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
-			elif extension == ".xspf":
-				current["type"] = "xspf"
+			if assert_type_this_frame:
+				# if the user clicks a format while in full path mode, remove extension from box text...
+				try:
+					period = self.directory_text_box.text[::-1].index(".")
+				except:
+					period = 100
+				if period <= 4:
+					self.directory_text_box.text = self.directory_text_box.text[:-(period+1)]
+				# ...and add the desired extension
+				self.directory_text_box.text += "." + current["type"]
+
 			else:
-				current["type"] = "m3u"
+				if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
+					current["type"] = "broken"
+					ddt.text((x + round(160 * gui.scale), y + round(16 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
+				elif extension == ".xspf":
+					current["type"] = "xspf"
+				else:
+					current["type"] = "m3u"
+			original_playlist.playlist_file = self.directory_text_box.text
 		else:	
-			# if user unchecks full path, remove extension from box text
-			try:
-				period = self.directory_text_box.text[::-1].index(".")
-			except:
-				period = 100
-			if period <= 4:
-				self.directory_text_box.text = self.directory_text_box.text[:-(period+1)]
+			if assert_fpm_this_frame:
+				# if user unchecks full path, remove extension from box text
+				try:
+					period = self.directory_text_box.text[::-1].index(".")
+				except:
+					period = 100
+				if period <= 4:
+					self.directory_text_box.text = self.directory_text_box.text[:-(period+1)]
 			
 			current["path"] = self.directory_text_box.text
 			original_playlist.playlist_file = ""
 
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
-		y += round(43 * gui.scale)
+		y += round(48 * gui.scale)
 		current["relative"] = self.pref_box.toggle_square(
 			x, y, current["relative"], _("Relative paths for tracks"),
 			gui.level_2_click)
-		if self.draw.button(_("?"), x + round(200 * gui.scale), y - (2*gui.scale), press=gui.level_2_click):
+		ww = ddt.get_text_w(_("Relative paths for tracks"), 211) + 8
+		if self.draw.button(_("?"), x + round(ww * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
 			self.show_message(
 					_("Determines how tracks will be referenced in the exported file"),
 					_("Disabled: tracks will be located from root folder, e.g. \"/home/user/music_path/artist/album/track.mp3\"."),
 					_("Enabled: tracks will be located from where the playlist is saved, e.g. \"../artist/album/track.mp3\"."))
 			# TODO: make sense of these for windows and mac
-		y += round(43 * gui.scale)
+
+		y += round(48 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
-
-
 		if self.is_generator:
 			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
