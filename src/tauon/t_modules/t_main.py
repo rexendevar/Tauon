@@ -11688,7 +11688,7 @@ class Tauon:
 		self.gui.pl_update = 2
 
 	def pl_is_mut(self, pl: int) -> bool:
-		"""returns True if specified playlist number is associated with a generator i think"""
+		"""returns True if specified playlist number is modifiable/not associated with a generator i think"""
 		id = self.pctl.pl_to_id(pl)
 		if id is None:
 			return False
@@ -22320,7 +22320,8 @@ class ExportPlaylistBox:
 				del self.prefs.playlist_exports[key]
 
 	def render(self) -> None:
-		"""runs every frame that the playlist export menu is open"""
+		"""runs every frame that the playlist export menu is open.
+		also deals with the export entry logic."""
 		gui = self.gui
 		ddt = self.ddt
 		colours = self.colours
@@ -22351,7 +22352,7 @@ class ExportPlaylistBox:
 		# are we in full path mode?
 		# but only run this once or some boxes will be unusable
 		if not self.has_it_run_yet:
-			self.is_generator = not (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
+			self.is_generator = (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
 			try:
 				current["full_path_mode"]
 			except:
@@ -22426,13 +22427,13 @@ class ExportPlaylistBox:
 
 
 		if self.is_generator:
-			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import disabled for generator playlists)"), colours.grey(200), 15)
+			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		elif not current["full_path_mode"] or current["type"] == "broken":
-			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import requires a valid full path)"), colours.grey(200), 15)
+			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		else:
-			current["auto_imp"] = self.pref_box.toggle_square(x + round(105*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
+			current["auto_imp"] = self.pref_box.toggle_square(x + round(105*gui.scale), y - round(3*gui.scale), current["auto_imp"], _("Auto-import"), gui.level_2_click)
 			
 
 		y += round(0 * gui.scale)
