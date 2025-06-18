@@ -1914,20 +1914,38 @@ class PlayerCtl:
 			if export_entry["auto_imp"]:
 				if not os.path.exists(new_playlist.playlist_file):
 					self.tauon.show_message(
-						f"This playlist is linked to a file that no longer exists.",
-						"The file will be unlinked.",
+						_("This playlist is linked to a file that no longer exists."),
+						_("The file will be unlinked."),
 						mode="warning")
 
 					export_entry["auto_imp"] = False
 					self.prefs.playlist_exports[id] = export_entry
 					new_playlist.playlist_file = ""
 					new_playlist.file_size = 0
-
+				# tauon checks file size to determine if there have been any changes
 				elif os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
-					playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
-					new_playlist.playlist_ids = playlist.copy()
-					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
-					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
+					if export_entry["type"] == "m3u":
+						playlist,_ = self.tauon.parse_m3u(new_playlist.playlist_file)
+						new_playlist.playlist_ids = playlist.copy()
+						new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
+						logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
+					elif export_entry["type"] == "xspf":
+						playlist,_,_ = self.tauon.parse_xspf(new_playlist.playlist_file)
+						new_playlist.playlist_ids = playlist.copy()
+						new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
+						logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
+					else: # if user closed the export dialog while the settings were unusable
+						# honestly this probably will never run.
+						self.tauon.show_message(
+							_("This playlist's import/export settings are broken."),
+							_("They will be reset. Please make sure next time."),
+							mode="warning")
+
+						export_entry["auto_imp"] = False
+						export_entry["type"] = "m3u"
+						self.prefs.playlist_exports[id] = export_entry
+						new_playlist.playlist_file = ""
+						new_playlist.file_size = 0
 			self.render_playlist()
 
 		self.default_playlist = self.multi_playlist[self.active_playlist_viewing].playlist_ids
@@ -6495,7 +6513,7 @@ class Tauon:
 			self.enter_radio_view()
 
 	def parse_m3u(self, path: str) -> tuple[ list[int], list[RadioStation] ]:
-		"""read specified .m3u playlist file, return list of track IDs/stations"""
+		"""read specified .m3u[8] playlist file, return list of track IDs/stations"""
 		playlist: list[int] = []
 		stations: list[RadioStation] = []
 
@@ -6656,12 +6674,9 @@ class Tauon:
 			lines = f.readlines()
 			self.read_pls(lines, path)
 			f.close()
-
-	def load_xspf(self, path: str) -> None:
-		name = os.path.basename(path)[:-5]
-		# self.log("Importing XSPF playlist: " + path, title=True)
-		logging.info(f"Importing XSPF playlist: {path}")
-
+		
+	def parse_xspf(self, path:str) -> tuple[ list[int], list[RadioStation], str]:
+		"""read specified .xspf playlist file, return lists of track IDs & stations plus playlist name if stored"""
 		try:
 			parser = ET.XMLParser(encoding="utf-8")
 			e = ET.parse(path, parser).getroot()
@@ -6669,6 +6684,7 @@ class Tauon:
 			a: list[dict[str, str | None]] = []
 			b: dict[str, str | None] = {}
 			info = ""
+			name = ""
 
 			for top in e:
 
@@ -6729,8 +6745,6 @@ class Tauon:
 					self.radiobox.start(radio)
 
 				del a[i]
-		if stations:
-			self.add_stations(stations, os.path.basename(path))
 		playlist: list[int] = []
 		missing = 0
 
@@ -6840,11 +6854,37 @@ class Tauon:
 			self.show_message(
 				_("Failed to locate {N} out of {T} tracks.")
 				.format(N=str(missing), T=str(len(a))))
+
+		return playlist, stations, name
+		
+
+	def load_xspf(self, path: str) -> None:
+		# self.log("Importing XSPF playlist: " + path, title=True)
+		logging.info(f"Importing XSPF playlist: {path}")
+
+		playlist, stations, name = self.parse_xspf(path)
+		if not name:
+			name = os.path.basename(path)[:-5]
+		if stations:
+			self.add_stations(stations, os.path.basename(path))
 		#logging.info(playlist)
 		if playlist:
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist)
 			self.pctl.multi_playlist.append(
-				self.pl_gen(title=name, playlist_ids=playlist))
+				final_playlist)
 		self.gui.update = 1
+
+		# populate export fields
+		id = final_playlist.uuid_int
+		export_entry = self.prefs.playlist_exports.get(id)
+		if not export_entry:
+			export_entry = copy.copy(self.export_playlist_box.default)
+		export_entry["type"] = "xspf"
+		export_entry["auto"] = True
+		export_entry["auto_imp"] = True
+		export_entry["relative"] = True # note for flynn do logic here actually dont it's not worth it
+		export_entry["full_path_mode"] = True
+		self.prefs.playlist_exports[id] = export_entry
 
 		# logging.info("Finished importing XSPF")
 
@@ -22366,7 +22406,7 @@ class ExportPlaylistBox:
 		self.has_it_run_yet = True
 
 
-		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Export Playlist"), colours.grey(230), 213)
+		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Import/Export Playlist"), colours.grey(230), 213)
 
 		x += round(15 * gui.scale)
 		y += round(25 * gui.scale)
@@ -22397,13 +22437,16 @@ class ExportPlaylistBox:
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
 
-		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Full path (not just directory)", gui.level_2_click)
-		
-		# save changes + display warning if path is invalid
 		extension = self.directory_text_box.text[-5:].lower()
-		# probably could combine these more intelligently but oh well.
 		if extension == ".xspf" or extension == ".m3u8" or extension.endswith(".m3u"):
 			current["full_path_mode"] = True
+
+		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], _("Full path (not just directory)"), gui.level_2_click)
+		if self.draw.button(_("?"), x + round(405 * gui.scale), y - (2*gui.scale), press=gui.level_2_click):
+			self.show_message(
+					_("Determines where the playlist file is saved"),
+					_("In full path mode, the playlist will write to the \x1B[3mexact file\x1B[0m shown in the box. Otherwise,"),
+					_("the box will refer to its \x1B[3mcontaining folder\x1B[3m, and the filename will be the playlist title."))
 
 		if current["full_path_mode"]:
 			original_playlist.playlist_file = self.directory_text_box.text
@@ -22415,16 +22458,30 @@ class ExportPlaylistBox:
 			else:
 				current["type"] = "m3u"
 		else:	
+			# if user unchecks full path, remove extension from box text
+			try:
+				period = self.directory_text_box.text[::-1].index(".")
+			except:
+				period = 100
+			if period <= 4:
+				self.directory_text_box.text = self.directory_text_box.text[:-(period+1)]
+			
 			current["path"] = self.directory_text_box.text
 			original_playlist.playlist_file = ""
 
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
-		y += round(35 * gui.scale)
+		y += round(43 * gui.scale)
 		current["relative"] = self.pref_box.toggle_square(
-			x, y, current["relative"], _("Use relative paths"),
+			x, y, current["relative"], _("Relative paths for tracks"),
 			gui.level_2_click)
-		y += round(60 * gui.scale)
+		if self.draw.button(_("?"), x + round(200 * gui.scale), y - (2*gui.scale), press=gui.level_2_click):
+			self.show_message(
+					_("Determines how tracks will be referenced in the exported file"),
+					_("Disabled: tracks will be located from root folder, e.g. \"/home/user/music_path/artist/album/track.mp3\"."),
+					_("Enabled: tracks will be located from where the playlist is saved, e.g. \"../artist/album/track.mp3\"."))
+			# TODO: make sense of these for windows and mac
+		y += round(43 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 
 
@@ -22439,18 +22496,20 @@ class ExportPlaylistBox:
 			
 
 		y += round(0 * gui.scale)
-		ww = ddt.get_text_w(_("Export"), 211)
+		ww = ddt.get_text_w(_("Export now"), 211)
 		x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
 
 		self.prefs.playlist_exports[self.id] = current
 
-		if self.draw.button(_("Export"), x, y - (2*gui.scale), press=gui.level_2_click):
+		# TODO: add some indication that settings are saved every frame, or perhaps a save button that just closes the box
+
+		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
 				self.run_export(current, self.id, warnings=True)
 			else:
 				self.show_message(
 					_("Export error"),
-					"Correct your filepath or select a format, then try again.",
+					_("Correct your filepath or select a format, then try again."),
 					mode = "warning")
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
