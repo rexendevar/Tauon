@@ -11688,7 +11688,7 @@ class Tauon:
 		self.gui.pl_update = 2
 
 	def pl_is_mut(self, pl: int) -> bool:
-		"""returns True if specified playlist ID is associated with a generator i think"""
+		"""returns True if specified playlist number is associated with a generator i think"""
 		id = self.pctl.pl_to_id(pl)
 		if id is None:
 			return False
@@ -22292,6 +22292,7 @@ class ExportPlaylistBox:
 		self.show_message = tauon.show_message
 		self.active = False
 		self.id = None
+		self.is_generator = False
 		self.directory_text_box = TextBox2(tauon)
 		self.default = {
 			"path": str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
@@ -22350,7 +22351,7 @@ class ExportPlaylistBox:
 		# are we in full path mode?
 		# but only run this once or some boxes will be unusable
 		if not self.has_it_run_yet:
-			is_generator = not (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
+			self.is_generator = not (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
 			try:
 				current["full_path_mode"]
 			except:
@@ -22424,7 +22425,7 @@ class ExportPlaylistBox:
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 
 
-		if is_generator:
+		if self.is_generator:
 			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import disabled for generator playlists)"), colours.grey(200), 15)
 			current["auto_imp"] = False
 		elif not current["full_path_mode"] or current["type"] == "broken":
