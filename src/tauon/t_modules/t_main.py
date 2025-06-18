@@ -22403,6 +22403,10 @@ class ExportPlaylistBox:
 		
 		# save changes + display warning if path is invalid
 		extension = self.directory_text_box.text[-5:].lower()
+		# probably could combine these more intelligently but oh well.
+		if extension == ".xspf" or extension == ".m3u8" or extension.endswith(".m3u"):
+			current["full_path_mode"] = True
+
 		if current["full_path_mode"]:
 			original_playlist.playlist_file = self.directory_text_box.text
 			if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
@@ -22427,13 +22431,13 @@ class ExportPlaylistBox:
 
 
 		if self.is_generator:
-			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
+			ddt.text((x + round(105 * gui.scale), y- round(2*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		elif not current["full_path_mode"] or current["type"] == "broken":
-			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
+			ddt.text((x + round(105 * gui.scale), y- round(2*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		else:
-			current["auto_imp"] = self.pref_box.toggle_square(x + round(105*gui.scale), y - round(3*gui.scale), current["auto_imp"], _("Auto-import"), gui.level_2_click)
+			current["auto_imp"] = self.pref_box.toggle_square(x + round(105*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 			
 
 		y += round(0 * gui.scale)
@@ -22442,7 +22446,7 @@ class ExportPlaylistBox:
 
 		self.prefs.playlist_exports[self.id] = current
 
-		if self.draw.button(_("Export"), x, y, press=gui.level_2_click):
+		if self.draw.button(_("Export"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
 				self.run_export(current, self.id, warnings=True)
 			else:
