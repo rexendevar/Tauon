@@ -1907,17 +1907,18 @@ class PlayerCtl:
 		new_playlist = self.multi_playlist[self.active_playlist_viewing]
 		export_entry = self.prefs.playlist_exports.get(id)
 		try:
-			export_entry["full_path_mode"]
+			export_entry["auto_imp"]
 		except:
 			pass 
-
 		else:
-			if export_entry["full_path_mode"]:
+			if export_entry["auto_imp"]:
 				if not os.path.exists(new_playlist.playlist_file):
-					logging.warning(f"Playlist \"{new_playlist.title}\" is linked to a file that no longer exists.")
-					logging.warning("This file will be unlinked.")
+					self.tauon.show_message(
+						f"This playlist is linked to a file that no longer exists.",
+						"The file will be unlinked.",
+						mode="warning")
 
-					export_entry["full_path_mode"] = False
+					export_entry["auto_imp"] = False
 					self.prefs.playlist_exports[id] = export_entry
 					new_playlist.playlist_file = ""
 					new_playlist.file_size = 0
@@ -1925,8 +1926,6 @@ class PlayerCtl:
 				elif os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
 					playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
 					new_playlist.playlist_ids = playlist.copy()
-					with open(new_playlist.title + "_import.txt", "w") as logger:
-						logger.write(str(new_playlist.playlist_ids))
 					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
 					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
 			self.render_playlist()
@@ -6591,13 +6590,14 @@ class Tauon:
 		if stations:
 			self.add_stations(stations, name)
 
-		# populate export fields - dirty code
+		# populate export fields
 		id = final_playlist.uuid_int
 		export_entry = self.prefs.playlist_exports.get(id)
 		if not export_entry:
 			export_entry = copy.copy(self.export_playlist_box.default)
 		export_entry["type"] = "m3u"
 		export_entry["auto"] = True
+		export_entry["auto_imp"] = True
 		export_entry["relative"] = True # note for flynn do logic here
 		export_entry["full_path_mode"] = True
 		self.prefs.playlist_exports[id] = export_entry
@@ -8035,6 +8035,7 @@ class Tauon:
 		"""Exports an m3u file from a Playlist dictionary in multi_playlist.
 		If the playlist contains a playlist_file field, it will export to that file;
 		otherwise it will export to the directory given as an argument."""
+
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
@@ -8043,21 +8044,21 @@ class Tauon:
 			direc = str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
-		else:
-			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
 		
 		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
 			# if the playlist has a file attribute:
 			target = self.pctl.multi_playlist[pl].playlist_file
 			logging.info(f"Playlist will export to filepath {target}")
 			# file attribute is removed if full path mode is disabled
+		else:
+			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
+
 		try:
 			target
 		except:
 			logging.error("export_m3u: something's gone seriously wrong.")
 			return 1
-		with open(self.pctl.multi_playlist[pl].title + "_export.log", "w") as logger:
-			logger.write(str(self.pctl.multi_playlist[pl].playlist_ids))
+
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
 		for number in self.pctl.multi_playlist[pl].playlist_ids:
@@ -22297,6 +22298,7 @@ class ExportPlaylistBox:
 			"type": "xspf",
 			"relative": False,
 			"auto": False,
+			"auto_imp": False,
 			"full_path_mode": False,
 		}
 		self.has_it_run_yet = False
@@ -22354,6 +22356,11 @@ class ExportPlaylistBox:
 			except:
 				current["full_path_mode"] = False
 
+			try:
+				current["auto_imp"]
+			except:
+				current["auto_imp"] = False
+
 			if original_playlist.playlist_file and original_playlist.playlist_file != "":
 				current["full_path_mode"] = True
 		self.has_it_run_yet = True
@@ -22373,11 +22380,9 @@ class ExportPlaylistBox:
 		ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
 
 
-		# if full path mode is disabled, display directory save path
-		# else if playlist file is empty (i.e. user just checked box), still do that
-		if not current["full_path_mode"]:
-			self.directory_text_box.text = current["path"]
-		elif not original_playlist.playlist_file or original_playlist.playlist_file == "":
+		# if full path mode is disabled or empty, display directory save path
+		# else display the full path 
+		if not current["full_path_mode"] or not original_playlist.playlist_file or original_playlist.playlist_file == "":
 			self.directory_text_box.text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
@@ -22392,13 +22397,7 @@ class ExportPlaylistBox:
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
 
-		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "2-way file sync (requires full path)", gui.level_2_click)
-		if self.draw.button(_("?"), x + round(405 * gui.scale), y - round(3* gui.scale), press=gui.level_2_click):
-		# if self.draw.button(x + round(385 * gui.scale), y, _("?")):
-				self.show_message(
-					"If checked, this playlist will export directly to the specified file.",
-					"The playlist will also automatically IMPORT from the same file when it changes.",
-					"Useful for syncing your playlists. Don't forget the file extension.")
+		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Full path (not just directory)", gui.level_2_click)
 		
 		# save changes + display warning if path is invalid
 		extension = self.directory_text_box.text[-5:].lower()
@@ -22423,6 +22422,17 @@ class ExportPlaylistBox:
 			gui.level_2_click)
 		y += round(60 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
+
+
+		if is_generator:
+			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import disabled for generator playlists)"), colours.grey(200), 15)
+			current["auto_imp"] = False
+		elif not current["full_path_mode"] or current["type"] == "broken":
+			ddt.text((x + round(105 * gui.scale), y), _("(Auto-import requires a valid full path)"), colours.grey(200), 15)
+			current["auto_imp"] = False
+		else:
+			current["auto_imp"] = self.pref_box.toggle_square(x + round(105*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
+			
 
 		y += round(0 * gui.scale)
 		ww = ddt.get_text_w(_("Export"), 211)
