@@ -6506,6 +6506,10 @@ class Tauon:
 			lines = file.readlines()
 
 		# parse data lines - either song files or radio links
+		found_imported = 0
+		found_file = 0
+		found_title = 0
+		not_found = 0
 		for i, line in enumerate(lines):
 			line = line.strip("\r\n").strip()
 			if not line.startswith("#"):  # line.startswith("http"):
@@ -6541,10 +6545,10 @@ class Tauon:
 								titles[value.artist + " - " + value.title] = value
 
 					# Is file path already imported?
-					logging.info(line)
+					# logging.info(line)
 					if line in location_dict:
 						playlist.append(location_dict[line].index)
-						logging.info("found imported")
+						found_imported += 1
 					# Or... does the file exist? Then import it
 					elif os.path.isfile(line):
 						nt = TrackClass()
@@ -6554,13 +6558,15 @@ class Tauon:
 						self.pctl.master_library[self.pctl.master_count] = nt
 						playlist.append(self.pctl.master_count)
 						self.pctl.master_count += 1
-						logging.info("found file")
+						found_file += 1
 					# Last resort, guess based on title
 					elif line_title in titles:
 						playlist.append(titles[line_title].index)
-						logging.info("found title")
+						found_title += 1
 					else:
-						logging.info("not found")
+						logging.info(f"track \"{line_title}\"not found")
+						not_found += 1
+		logging.info(f"playlist imported with {found_imported} tracks already in library, {found_file} found from filepath, {found_title} from title and {not_found} not found")
 		return playlist, stations
 
 	def load_m3u(self, path: str) -> None:
@@ -11681,6 +11687,7 @@ class Tauon:
 		self.gui.pl_update = 2
 
 	def pl_is_mut(self, pl: int) -> bool:
+		"""returns True if specified playlist ID is associated with a generator"""
 		id = self.pctl.pl_to_id(pl)
 		if id is None:
 			return False
@@ -22295,6 +22302,7 @@ class ExportPlaylistBox:
 		self.has_it_run_yet = False
 
 	def activate(self, playlist: int) -> None:
+		"""runs when the playlist export menu is opened"""
 		self.active = True
 		self.gui.box_over = True
 		self.id = self.pctl.pl_to_id(playlist)
@@ -22309,7 +22317,7 @@ class ExportPlaylistBox:
 				del self.prefs.playlist_exports[key]
 
 	def render(self) -> None:
-		# runs every frame the menu is open
+		"""runs every frame that the playlist export menu is open"""
 		gui = self.gui
 		ddt = self.ddt
 		colours = self.colours
@@ -22340,6 +22348,7 @@ class ExportPlaylistBox:
 		# are we in full path mode?
 		# but only run this once or some boxes will be unusable
 		if not self.has_it_run_yet:
+			is_generator = self.tauon.pl_is_mut(self.id)
 			try:
 				current["full_path_mode"]
 			except:
@@ -40994,7 +41003,7 @@ def main(holder: Holder) -> None:
 
 	# tab_menu.add("Sort By Filepath", tauon.sort_path_pl, pass_ref=True)
 
-	tab_menu.add(MenuItem(_("Export…"), tauon.export_playlist_box.activate, pass_ref=True))
+	tab_menu.add(MenuItem(_("Import/export…"), tauon.export_playlist_box.activate, pass_ref=True))
 
 	tab_menu.add_sub(_("Misc…"), 175)
 	tab_menu.add_to_sub(2, MenuItem(_("Export Playlist Stats"), tauon.export_stats, pass_ref=True))
