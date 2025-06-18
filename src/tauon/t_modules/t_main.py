@@ -6583,10 +6583,6 @@ class Tauon:
 			logging.info(f"Imported m3u file as {final_playlist.title}")
 			self.pctl.multi_playlist.append(
 				final_playlist)
-			try:
-				logging.info(f"object mode: uuid is {final_playlist.uuid_int}")
-			except Exception as e:
-				logging.warning(e)
 		if stations:
 			self.add_stations(stations, name)
 
@@ -6598,7 +6594,7 @@ class Tauon:
 		export_entry["type"] = "m3u"
 		export_entry["auto"] = True
 		export_entry["auto_imp"] = True
-		export_entry["relative"] = True # note for flynn do logic here
+		export_entry["relative"] = True # note for flynn do logic here actually dont it's not worth it
 		export_entry["full_path_mode"] = True
 		self.prefs.playlist_exports[id] = export_entry
 
@@ -22411,7 +22407,7 @@ class ExportPlaylistBox:
 			original_playlist.playlist_file = self.directory_text_box.text
 			if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
 				current["type"] = "broken"
-				ddt.text((x + round(160 * gui.scale), y + round(14 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
+				ddt.text((x + round(160 * gui.scale), y + round(16 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
 			elif extension == ".xspf":
 				current["type"] = "xspf"
 			else:
@@ -22431,13 +22427,13 @@ class ExportPlaylistBox:
 
 
 		if self.is_generator:
-			ddt.text((x + round(105 * gui.scale), y- round(2*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
+			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		elif not current["full_path_mode"] or current["type"] == "broken":
-			ddt.text((x + round(105 * gui.scale), y- round(2*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
+			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		else:
-			current["auto_imp"] = self.pref_box.toggle_square(x + round(105*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
+			current["auto_imp"] = self.pref_box.toggle_square(x + round(130*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 			
 
 		y += round(0 * gui.scale)
