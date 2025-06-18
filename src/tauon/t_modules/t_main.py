@@ -1267,10 +1267,13 @@ class ColoursClass:
 		self.bar_time = self.grey(70)
 
 		self.top_panel_background = self.grey(15)
-		self.status_text_over = rgb_add_hls(self.top_panel_background, 0, 0.83, 0)
-		self.status_text_normal = rgb_add_hls(self.top_panel_background, 0, 0.30, -0.15)
+		self.status_text_over: ColourRGBA | None = None
+		self.status_text_normal: ColourRGBA | None = None
+		
+
 
 		self.side_panel_background = self.grey(18)
+		self.lyrics_panel_background: ColourRGBA | None = None
 		self.gallery_background = self.side_panel_background
 		self.playlist_panel_background = self.grey(21)
 		self.bottom_panel_colour = self.grey(15)
@@ -1318,6 +1321,7 @@ class ColoursClass:
 		self.status_info_text = ColourRGBA(245, 205, 0, 255)
 		self.streaming_text = ColourRGBA(220, 75, 60, 255)
 		self.lyrics = self.grey(245)
+		self.active_lyric = ColourRGBA(255, 210, 50, 255)
 
 		self.corner_button        = ColourRGBA(255, 255, 255, 50)  # [60, 60, 60, 255]
 		self.corner_button_active = ColourRGBA(255, 255, 255, 230)  # [230, 230, 230, 255]
@@ -1393,10 +1397,18 @@ class ColoursClass:
 		if self.box_thumb_background is None:
 			self.box_thumb_background = alpha_mod(self.box_button_background, 175)
 
+		if self.lyrics_panel_background is None:
+			self.lyrics_panel_background = self.side_panel_background
+		if self.status_text_over is None:
+			self.status_text_over = rgb_add_hls(self.top_panel_background, 0, 0.83, 0)
+		if self.status_text_normal is None:
+			self.status_text_normal = rgb_add_hls(self.top_panel_background, 0, 0.30, -0.15)
+
 		# Pre calculate alpha blend for spec background
 		self.vis_bg.r = int(0.05 * 255 + (1 - 0.05) * self.top_panel_background.r)
 		self.vis_bg.g = int(0.05 * 255 + (1 - 0.05) * self.top_panel_background.g)
 		self.vis_bg.b = int(0.05 * 255 + (1 - 0.05) * self.top_panel_background.b)
+		self.vis_bg.a = int(0.05 * 255 + (1 - 0.05) * self.top_panel_background.a)
 
 		self.message_box_bg = self.box_background
 		self.sys_tab_bg = self.tab_background
@@ -1819,7 +1831,7 @@ class PlayerCtl:
 			logging.exception("Failed to parse as int, returning 'a'")
 			return "a"
 
-	def re_import2(self, pl: int) -> None:
+	def re_import2(self, pl: int) -> None: # note for flynn
 		paths = self.multi_playlist[pl].last_folder
 
 		reduce_paths(paths)
@@ -1840,7 +1852,7 @@ class PlayerCtl:
 		for i, p in enumerate(self.multi_playlist):
 			self.re_import2(i)
 
-	def switch_playlist(self, number: int, cycle: bool = False, quiet: bool = False) -> None:
+	def switch_playlist(self, number: int, cycle: bool = False, quiet: bool = False) -> None: # note for flynn
 		# Close any active menus
 		# for instance in Menu.instances:
 		# 	instance.active = False
@@ -1889,13 +1901,40 @@ class PlayerCtl:
 		while self.active_playlist_viewing < 0:
 			self.active_playlist_viewing += len(self.multi_playlist)
 
+		id = self.multi_playlist[self.active_playlist_viewing].uuid_int
+
+		# check whether playlist should be auto reloaded
+		new_playlist = self.multi_playlist[self.active_playlist_viewing]
+		export_entry = self.prefs.playlist_exports.get(id)
+		try:
+			export_entry["auto_imp"]
+		except:
+			pass 
+		else:
+			if export_entry["auto_imp"]:
+				if not os.path.exists(new_playlist.playlist_file):
+					self.tauon.show_message(
+						f"This playlist is linked to a file that no longer exists.",
+						"The file will be unlinked.",
+						mode="warning")
+
+					export_entry["auto_imp"] = False
+					self.prefs.playlist_exports[id] = export_entry
+					new_playlist.playlist_file = ""
+					new_playlist.file_size = 0
+
+				elif os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
+					playlist,stations = self.tauon.parse_m3u(new_playlist.playlist_file)
+					new_playlist.playlist_ids = playlist.copy()
+					new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
+					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
+			self.render_playlist()
+
 		self.default_playlist = self.multi_playlist[self.active_playlist_viewing].playlist_ids
 		self.playlist_view_position = self.multi_playlist[self.active_playlist_viewing].position
 		self.selected_in_playlist = self.multi_playlist[self.active_playlist_viewing].selected
 		logging.debug("Position changed by playlist change")
 		self.gui.shift_selection = [self.selected_in_playlist]
-
-		id = self.multi_playlist[self.active_playlist_viewing].uuid_int
 
 		code = self.gen_codes.get(id)
 		if code is not None and self.tauon.check_auto_update_okay(code, self.active_playlist_viewing):
@@ -6455,20 +6494,22 @@ class Tauon:
 		if not self.gui.radio_view:
 			self.enter_radio_view()
 
-	def load_m3u(self, path: str) -> None:
-		name = os.path.basename(path)[:-4]
+	def parse_m3u(self, path: str) -> tuple[ list[int], list[RadioStation] ]:
+		"""read specified .m3u playlist file, return list of track IDs/stations"""
 		playlist: list[int] = []
 		stations: list[RadioStation] = []
 
-		location_dict: dict[str, TrackClass] = {}
 		titles:        dict[str, TrackClass] = {}
-
-		if not os.path.isfile(path):
-			return
+		location_dict: dict[str, TrackClass] = {}
 
 		with Path(path).open(encoding="utf-8") as file:
 			lines = file.readlines()
 
+		# parse data lines - either song files or radio links
+		found_imported = 0
+		found_file = 0
+		found_title = 0
+		not_found = 0
 		for i, line in enumerate(lines):
 			line = line.strip("\r\n").strip()
 			if not line.startswith("#"):  # line.startswith("http"):
@@ -6504,10 +6545,10 @@ class Tauon:
 								titles[value.artist + " - " + value.title] = value
 
 					# Is file path already imported?
-					logging.info(line)
+					# logging.info(line)
 					if line in location_dict:
 						playlist.append(location_dict[line].index)
-						logging.info("found imported")
+						found_imported += 1
 					# Or... does the file exist? Then import it
 					elif os.path.isfile(line):
 						nt = TrackClass()
@@ -6517,19 +6558,46 @@ class Tauon:
 						self.pctl.master_library[self.pctl.master_count] = nt
 						playlist.append(self.pctl.master_count)
 						self.pctl.master_count += 1
-						logging.info("found file")
+						found_file += 1
 					# Last resort, guess based on title
 					elif line_title in titles:
 						playlist.append(titles[line_title].index)
-						logging.info("found title")
+						found_title += 1
 					else:
-						logging.info("not found")
+						logging.info(f"track \"{line_title}\"not found")
+						not_found += 1
+		logging.info(f"playlist imported with {found_imported} tracks already in library, {found_file} found from filepath, {found_title} from title and {not_found} not found")
+		return playlist, stations
 
+	def load_m3u(self, path: str) -> None:
+		"""import an m3u file and create a new Tauon playlist for it"""
+		name = os.path.basename(path)[:-4].rstrip(".")
+		if not os.path.isfile(path):
+			return
+		
+		playlist, stations = self.parse_m3u(path)
+		
+		# & then add it to the list
 		if playlist:
+			filesize = os.path.getsize(path)
+			final_playlist = self.pl_gen(title=name, playlist_ids=playlist, playlist_file=path, file_size=filesize)
+			logging.info(f"Imported m3u file as {final_playlist.title}")
 			self.pctl.multi_playlist.append(
-				self.pl_gen(title=name, playlist_ids=playlist))
+				final_playlist)
 		if stations:
 			self.add_stations(stations, name)
+
+		# populate export fields
+		id = final_playlist.uuid_int
+		export_entry = self.prefs.playlist_exports.get(id)
+		if not export_entry:
+			export_entry = copy.copy(self.export_playlist_box.default)
+		export_entry["type"] = "m3u"
+		export_entry["auto"] = True
+		export_entry["auto_imp"] = True
+		export_entry["relative"] = True # note for flynn do logic here actually dont it's not worth it
+		export_entry["full_path_mode"] = True
+		self.prefs.playlist_exports[id] = export_entry
 
 		self.gui.update = 1
 
@@ -7961,15 +8029,32 @@ class Tauon:
 	#	 return [self.colours.menu_text, self.colours.menu_background, line]
 
 	def export_m3u(self, pl: int, direc: str | None = None, relative: bool = False, show: bool = True) -> int | str:
+		"""Exports an m3u file from a Playlist dictionary in multi_playlist.
+		If the playlist contains a playlist_file field, it will export to that file;
+		otherwise it will export to the directory given as an argument."""
+
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
-
-		if not direc:
+		
+		if not direc or direc == "see playlist_file":
 			direc = str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
-		target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
+		
+		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
+			# if the playlist has a file attribute:
+			target = self.pctl.multi_playlist[pl].playlist_file
+			logging.info(f"Playlist will export to filepath {target}")
+			# file attribute is removed if full path mode is disabled
+		else:
+			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".m3u")
+
+		try:
+			target
+		except:
+			logging.error("export_m3u: something's gone seriously wrong.")
+			return 1
 
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
@@ -8012,7 +8097,19 @@ class Tauon:
 			if not os.path.exists(direc):
 				os.makedirs(direc)
 
-		target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".xspf")
+		if direc != "see playlist_file":
+			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".xspf")
+		
+		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
+			# if the playlist has a file attribute:
+			target = self.pctl.multi_playlist[pl].playlist_file
+			logging.info(f"Playlist will export to filepath {target}")
+			# file attribute is removed if full path mode is disabled
+		try:
+			target
+		except:
+			logging.error("export_xspf: something's gone seriously wrong.")
+			return 1
 
 		xspf_root = ET.Element("playlist", version="1", xmlns="http://xspf.org/ns/0/")
 		xspf_tracklist_tag = ET.SubElement(xspf_root, "trackList")
@@ -10805,6 +10902,7 @@ class Tauon:
 		self.reload()
 
 	def stt2(self, sec: int) -> str:
+		"""converts seconds into days hours minutes"""
 		days, rem = divmod(sec, 86400)
 		hours, rem = divmod(rem, 3600)
 		min, sec = divmod(rem, 60)
@@ -11587,6 +11685,7 @@ class Tauon:
 		self.gui.pl_update = 2
 
 	def pl_is_mut(self, pl: int) -> bool:
+		"""returns True if specified playlist number is modifiable/not associated with a generator i think"""
 		id = self.pctl.pl_to_id(pl)
 		if id is None:
 			return False
@@ -13857,6 +13956,8 @@ class Tauon:
 		parent:       str = "",
 		hidden:       bool = False,
 		notify:       bool = True, # Allows us to generate initial playlist before worker thread is ready
+		playlist_file:str = "", 
+		file_size:    int = 0,
 	) -> TauonPlaylist:
 		"""Generate a TauonPlaylist
 
@@ -13868,7 +13969,7 @@ class Tauon:
 			self.pctl.notify_change()
 
 		#return copy.deepcopy([title, playing, playlist, position, hide_title, selected, uid_gen(), [], hidden, False, parent, False])
-		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False)
+		return TauonPlaylist(title=title, playing=playing, playlist_ids=playlist_ids, position=position, hide_title=hide_title, selected=selected, uuid_int=uid_gen(), last_folder=[], hidden=hidden, locked=False, parent_playlist_id=parent, persist_time_positioning=False, playlist_file=playlist_file, file_size=file_size)
 
 	def open_uri(self, uri: str) -> None:
 		logging.info("OPEN URI")
@@ -14992,7 +15093,7 @@ class Tauon:
 				if self.gui.album_tab_mode:
 					self.show_in_gal(self.pctl.selected_in_playlist, silent=True)
 
-	def check_auto_update_okay(self, code, pl=None):
+	def check_auto_update_okay(self, code, pl=None): # note for flynn - could be a good way to check
 		try:
 			cmds = shlex.split(code)
 		except Exception:
@@ -19189,15 +19290,23 @@ class LyricsRenMini:
 		self.lyrics_position = 0
 
 	def generate(self, index, w) -> None:
-		self.text = self.pctl.master_library[index].lyrics
+		self.text = ""
+		
+		# LRC formatting search & destroy
+		for line in self.pctl.master_library[index].lyrics.split("\n"):
+			if len(line) < 10 or ( line[0] != "[" or line[9] != "]" and ":" not in line ) or "." not in line:
+				self.text += line + "\n"
+			else:
+				self.text += line[10:] + "\n"
 		self.lyrics_position = 0
 
 	def render(self, index, x, y, w, h, p) -> None:
-		if index != self.index or self.text != self.pctl.master_library[index].lyrics:
+		if index != self.index: # or self.text != self.pctl.master_library[index].lyrics:
 			self.index = index
 			self.generate(index, w)
 
-		colour = self.colours.side_bar_line1
+		colour = self.colours.lyrics
+		bg = self.colours.lyrics_panel_background
 
 		# if inp.key_ctrl_down:
 		#	 if inp.mouse_wheel < 0:
@@ -19205,7 +19314,7 @@ class LyricsRenMini:
 		#	 if inp.mouse_wheel > 0:
 		#		 prefs.lyrics_font_size -= 1
 
-		self.ddt.text((x, y, 4, w), self.text, colour, self.prefs.lyrics_font_size, w - (w % 2), self.colours.side_panel_background)
+		self.ddt.text((x, y, 4, w), self.text, colour, self.prefs.lyrics_font_size, w - (w % 2), bg)
 
 class LyricsRen:
 
@@ -19218,17 +19327,28 @@ class LyricsRen:
 		self.lyrics_position = 0
 
 	def test_update(self, track_object: TrackClass) -> None:
-		if track_object.index != self.index or self.text != track_object.lyrics:
+		if track_object.index != self.index: # or self.text != track_object.lyrics:
+			self.text = ""
 			self.index = track_object.index
-			self.text = track_object.lyrics
+			# old line: self.text = track_object.lyrics
+			# get rid of LRC formatting if you can:
+			for line in track_object.lyrics.split("\n"):
+				if len(line) < 10 or ( line[0] != "[" and line[9] != "]" or ":" not in line ) or "." not in line:
+					self.text += line + "\n"
+				else:
+					self.text += line[10:] + "\n"
+			# TODO (Flynn): fix the conditional for this section to run?
 			self.lyrics_position = 0
 
 	def render(self, x, y, w, h, p) -> None:
 		colour = self.colours.lyrics
-		if test_lumi(self.colours.gallery_background) < 0.5:
-			colour = self.colours.grey(40)
-
-		self.ddt.text((x, y, 4, w), self.text, colour, 17, w, self.colours.playlist_panel_background)
+		bg = self.colours.playlist_panel_background
+		
+		#colour = self.colours.grey(40)
+		# if test_lumi(self.colours.lyrics_panel_background) < 0.5:
+		#	colour = self.colours.grey(40)
+		# TODO (Flynn): this used to check the gallery backrgound & i don't even know why it did that much
+		self.ddt.text((x, y, 4, w), self.text, colour, 17, w, bg)
 
 class TimedLyricsToStatic:
 
@@ -19237,13 +19357,14 @@ class TimedLyricsToStatic:
 		self.cache_lyrics = ""
 
 	def get(self, track: TrackClass) -> str:
-		if track.lyrics:
-			return track.lyrics
 		if track.is_network:
 			return ""
 		if track == self.cache_key:
 			return self.cache_lyrics
-		data = find_synced_lyric_data(track)
+		if track.lyrics:
+			data = track.lyrics
+		else:
+			data = find_synced_lyric_data(track)
 
 		if data is None:
 			self.cache_lyrics = ""
@@ -19361,8 +19482,7 @@ class TimedLyricsRen:
 		highlight = True
 
 		if side_panel:
-			bg = self.colours.side_panel_background
-			bg = ColourRGBA(bg.r, bg.g, bg.b, 255)
+			bg = self.colours.lyrics_panel_background
 			font_size = 15
 			spacing = round(17 * self.gui.scale)
 			self.ddt.rect((self.window_size[0] - self.gui.rspw, y, self.gui.rspw, h), bg)
@@ -19372,7 +19492,6 @@ class TimedLyricsRen:
 			font_size = 17
 			spacing = round(23 * self.gui.scale)
 
-		bg = ColourRGBA(bg.r, bg.g, bg.b, 255)
 		test_time = self.tauon.get_real_time()
 
 		if self.pctl.track_queue[self.pctl.queue_step] == index:
@@ -19395,11 +19514,13 @@ class TimedLyricsRen:
 		for i, line in enumerate(self.data):
 			if 0 < yy < self.window_size[1]:
 				colour = self.colours.lyrics
-				if test_lumi(self.colours.gallery_background) < 0.5:
-					colour = self.colours.grey(40)
+				
+				#colour = self.colours.grey(70)
+				#if test_lumi(self.colours.gallery_background) < 0.5:
+				#	colour = self.colours.grey(40)
 
 				if i == line_active and highlight:
-					colour = ColourRGBA(255, 210, 50, 255)
+					colour = self.colours.active_lyric
 					if self.colours.lm:
 						colour = ColourRGBA(180, 130, 210, 255)
 
@@ -21046,6 +21167,7 @@ class AlbumArt:
 				#logging.info(x_colours)
 				colours.playlist_panel_bg = colours.side_panel_background
 				colours.playlist_box_background = colours.side_panel_background
+				colours.lyrics_panel_background = colours.side_panel_background
 
 				colours.playlist_panel_background = x_colours[0]
 				if len(x_colours) > 1:
@@ -22166,18 +22288,24 @@ class ExportPlaylistBox:
 		self.show_message = tauon.show_message
 		self.active = False
 		self.id = None
+		self.is_generator = False
 		self.directory_text_box = TextBox2(tauon)
 		self.default = {
 			"path": str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
-			"type": "xspf",
+			"type": "m3u",
 			"relative": False,
 			"auto": False,
+			"auto_imp": False,
+			"full_path_mode": False,
 		}
+		self.has_it_run_yet = False
 
 	def activate(self, playlist: int) -> None:
+		"""runs when the playlist export menu is opened"""
 		self.active = True
 		self.gui.box_over = True
 		self.id = self.pctl.pl_to_id(playlist)
+		self.has_it_run_yet = False
 
 		# Prune old enteries
 		ids = []
@@ -22188,11 +22316,16 @@ class ExportPlaylistBox:
 				del self.prefs.playlist_exports[key]
 
 	def render(self) -> None:
+		"""runs every frame that the playlist export menu is open.
+		also deals with the export entry logic."""
 		gui = self.gui
 		ddt = self.ddt
 		colours = self.colours
 		if not self.active:
 			return
+		for i, item in enumerate(self.pctl.multi_playlist):
+			if item.uuid_int == self.id:
+				original_playlist = item
 
 		w = 500 * gui.scale
 		h = 220 * gui.scale
@@ -22212,29 +22345,80 @@ class ExportPlaylistBox:
 		if not current:
 			current = copy.copy(self.default)
 
+		# are we in full path mode?
+		# but only run this once or some boxes will be unusable
+		if not self.has_it_run_yet:
+			self.is_generator = (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
+			try:
+				current["full_path_mode"]
+			except:
+				current["full_path_mode"] = False
+
+			try:
+				current["auto_imp"]
+			except:
+				current["auto_imp"] = False
+
+			if original_playlist.playlist_file and original_playlist.playlist_file != "":
+				current["full_path_mode"] = True
+			if current["type"] == "broken":
+				current["type"] = "m3u"
+		self.has_it_run_yet = True
+
+
 		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Export Playlist"), colours.grey(230), 213)
 
 		x += round(15 * gui.scale)
 		y += round(25 * gui.scale)
 
-		ddt.text((x, y + 8 * gui.scale), _("Save directory"), colours.grey(230), 11)
+		ddt.text((x, y + 8 * gui.scale), _("Save location"), colours.grey(230), 11)
 		y += round(30 * gui.scale)
 
 		rect1 = (x, y, round(450 * gui.scale), round(16 * gui.scale))
 		self.fields.add(rect1)
 		# ddt.rect(rect1, [40, 40, 40, 255], True)
 		ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
-		self.directory_text_box.text = current["path"]
+
+
+		# if full path mode is disabled or empty, display directory save path
+		# else display the full path 
+		if not current["full_path_mode"] or not original_playlist.playlist_file or original_playlist.playlist_file == "":
+			self.directory_text_box.text = current["path"]
+		else:
+			self.directory_text_box.text = original_playlist.playlist_file
+
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
-		current["path"] = self.directory_text_box.text
 
 		y += round(30 * gui.scale)
 		if self.pref_box.toggle_square(x, y, current["type"] == "xspf", "XSPF", gui.level_2_click):
 			current["type"] = "xspf"
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
+
+		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], "Full path (not just directory)", gui.level_2_click)
+		
+		# save changes + display warning if path is invalid
+		extension = self.directory_text_box.text[-5:].lower()
+		# probably could combine these more intelligently but oh well.
+		if extension == ".xspf" or extension == ".m3u8" or extension.endswith(".m3u"):
+			current["full_path_mode"] = True
+
+		if current["full_path_mode"]:
+			original_playlist.playlist_file = self.directory_text_box.text
+			if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
+				current["type"] = "broken"
+				ddt.text((x + round(160 * gui.scale), y + round(16 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
+			elif extension == ".xspf":
+				current["type"] = "xspf"
+			else:
+				current["type"] = "m3u"
+		else:	
+			current["path"] = self.directory_text_box.text
+			original_playlist.playlist_file = ""
+
+
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
 		y += round(35 * gui.scale)
 		current["relative"] = self.pref_box.toggle_square(
@@ -22243,22 +22427,48 @@ class ExportPlaylistBox:
 		y += round(60 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 
+
+		if self.is_generator:
+			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
+			current["auto_imp"] = False
+		elif not current["full_path_mode"] or current["type"] == "broken":
+			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
+			current["auto_imp"] = False
+		else:
+			current["auto_imp"] = self.pref_box.toggle_square(x + round(130*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
+			
+
 		y += round(0 * gui.scale)
 		ww = ddt.get_text_w(_("Export"), 211)
 		x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
 
 		self.prefs.playlist_exports[self.id] = current
 
-		if self.draw.button(_("Export"), x, y, press=gui.level_2_click):
-			self.run_export(current, self.id, warnings=True)
+		if self.draw.button(_("Export"), x, y - (2*gui.scale), press=gui.level_2_click):
+			if current["type"] != "broken":
+				self.run_export(current, self.id, warnings=True)
+			else:
+				self.show_message(
+					_("Export error"),
+					"Correct your filepath or select a format, then try again.",
+					mode = "warning")
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
-		path = current["path"]
-		if not os.path.isdir(path):
-			if warnings:
-				self.show_message(_("Directory does not exist"), mode="warning")
-			return
+		
+		# fetch corresponding TauonPlaylist object
+		for i, item in enumerate(self.pctl.multi_playlist):
+			if item.uuid_int == id:
+				original_playlist = item
+
+		if not original_playlist.playlist_file or original_playlist.playlist_file == "":
+			path = current["path"]
+			if not os.path.isdir(path):
+				if warnings:
+					self.show_message(_("Directory does not exist"), mode="warning")
+				return
+		else:
+			path = "see playlist_file"
 		target = ""
 		if current["type"] == "xspf":
 			target = self.tauon.export_xspf(self.pctl.id_to_pl(id), direc=path, relative=current["relative"], show=False)
@@ -22269,6 +22479,7 @@ class ExportPlaylistBox:
 			self.show_message(_("Playlist exported"), target, mode="done")
 
 class SearchOverlay:
+
 
 	def __init__(self, tauon: Tauon) -> None:
 		self.tauon        = tauon
@@ -34037,8 +34248,7 @@ class MetaBox:
 			self.gui.showed_title = True
 
 	def lyrics(self, x: int, y: int, w: int, h: int, track: TrackClass) -> None:
-		bg = self.colours.side_panel_background
-		bg = ColourRGBA(bg.r, bg.g, bg.b, 255)
+		bg = self.colours.lyrics_panel_background
 		self.ddt.rect((x, y, w, h), bg)
 		self.ddt.text_background_colour = bg
 
@@ -34091,15 +34301,13 @@ class MetaBox:
 			w - 50 * self.gui.scale,
 			None, 0)
 
-		self.ddt.rect((x, y + h - 1, w, 1), self.colours.side_panel_background)
+		self.ddt.rect((x, y + h - 1, w, 1), self.colours.lyrics_panel_background)
 
 		self.tauon.lyric_side_top_pulse.render(x, y, w - round(17 * self.gui.scale), 16 * self.gui.scale)
 		self.tauon.lyric_side_bottom_pulse.render(x, y + h, w - round(17 * self.gui.scale), 15 * self.gui.scale, bottom=True)
 
 	def draw(self, x: int, y: int, w: int, h: int, track=None) -> None:
-
 		bg = self.colours.side_panel_background
-		bg = ColourRGBA(bg.r, bg.g, bg.b, 255)
 		self.ddt.text_background_colour = bg
 		self.ddt.clear_rect((x, y, w, h))
 		self.ddt.rect((x, y, w, h), bg)
@@ -35216,7 +35424,7 @@ class Showcase:
 
 			gcx = x + box + int(self.window_size[0] * 0.15) + 10 * self.gui.scale
 			gcx -= 100 * self.gui.scale
-
+			# TODO (Flynn): work out the logic for full size static lyrics generating
 			timed_ready = False
 			if True and self.prefs.show_lyrics_showcase:
 				timed_ready = self.tauon.timed_lyrics_ren.generate(track)
@@ -40807,7 +41015,7 @@ def main(holder: Holder) -> None:
 
 	# tab_menu.add("Sort By Filepath", tauon.sort_path_pl, pass_ref=True)
 
-	tab_menu.add(MenuItem(_("Export…"), tauon.export_playlist_box.activate, pass_ref=True))
+	tab_menu.add(MenuItem(_("Import/export…"), tauon.export_playlist_box.activate, pass_ref=True))
 
 	tab_menu.add_sub(_("Misc…"), 175)
 	tab_menu.add_to_sub(2, MenuItem(_("Export Playlist Stats"), tauon.export_stats, pass_ref=True))
@@ -46129,11 +46337,7 @@ def main(holder: Holder) -> None:
 					for i, value in enumerate(gui.spec2_buffers[0]):
 						ddt.rect(
 							[gui.spec2_position, i, 1, 1],
-							ColourRGBA(
-								min(255, prefs.spec2_base[0] + int(value * prefs.spec2_multiply[0])),
-								min(255, prefs.spec2_base[1] + int(value * prefs.spec2_multiply[1])),
-								min(255, prefs.spec2_base[2] + int(value * prefs.spec2_multiply[2])),
-								255))
+							colours.vis_bg)
 
 					del gui.spec2_buffers[0]
 
@@ -46167,7 +46371,9 @@ def main(holder: Holder) -> None:
 					sdl3.SDL_RenderTexture(renderer, gui.spec2_tex, None, gui.spec2_rec)
 
 				if pref_box.enabled:
-					ddt.rect((gui.spec2_rec.x, gui.spec2_rec.y, gui.spec2_rec.w, gui.spec2_rec.h), ColourRGBA(0, 0, 0, 90))
+					#ddt.rect((gui.spec2_rec.x, gui.spec2_rec.y, gui.spec2_rec.w, gui.spec2_rec.h), ColourRGBA(0, 0, 0, 90))
+					logging.info("spectrogram box")
+					ddt.rect((gui.spec2_rec.x, gui.spec2_rec.y, gui.spec2_rec.w, gui.spec2_rec.h), colours.vis_bg)
 
 			if gui.vis == 4 and gui.draw_vis4_top:
 				showcase.render_vis(True)
