@@ -1901,12 +1901,6 @@ class PlayerCtl:
 		while self.active_playlist_viewing < 0:
 			self.active_playlist_viewing += len(self.multi_playlist)
 
-		self.default_playlist = self.multi_playlist[self.active_playlist_viewing].playlist_ids
-		self.playlist_view_position = self.multi_playlist[self.active_playlist_viewing].position
-		self.selected_in_playlist = self.multi_playlist[self.active_playlist_viewing].selected
-		logging.debug("Position changed by playlist change")
-		self.gui.shift_selection = [self.selected_in_playlist]
-
 		id = self.multi_playlist[self.active_playlist_viewing].uuid_int
 
 		# check whether playlist should be auto reloaded
@@ -1937,6 +1931,11 @@ class PlayerCtl:
 					logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
 			self.render_playlist()
 
+		self.default_playlist = self.multi_playlist[self.active_playlist_viewing].playlist_ids
+		self.playlist_view_position = self.multi_playlist[self.active_playlist_viewing].position
+		self.selected_in_playlist = self.multi_playlist[self.active_playlist_viewing].selected
+		logging.debug("Position changed by playlist change")
+		self.gui.shift_selection = [self.selected_in_playlist]
 
 		code = self.gen_codes.get(id)
 		if code is not None and self.tauon.check_auto_update_okay(code, self.active_playlist_viewing):
