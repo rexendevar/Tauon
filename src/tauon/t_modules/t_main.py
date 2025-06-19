@@ -22502,10 +22502,13 @@ class ExportPlaylistBox:
 				if warnings:
 					self.show_message(_("Directory does not exist"), mode="warning")
 				return
-		if not path.endswith("/"):
-			path += "." + current["type"]
-		else:
+		if path.endswith(".m3u8"):
+			pass
+		elif path.endswith("/"):
 			path += original_playlist.title + "." + current["type"]
+		else:
+			path = tauon.remove_extension(path) + "." + current["type"]
+			
 		target = ""
 		if current["type"] == "xspf":
 			target = self.tauon.export_xspf(self.pctl.id_to_pl(id), direc=path, relative=current["relative"], show=False)
