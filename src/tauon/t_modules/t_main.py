@@ -22425,6 +22425,14 @@ class ExportPlaylistBox:
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
 
+		old_type = current["type"]
+		y += round(30 * gui.scale)
+		if self.pref_box.toggle_square(x, y, current["type"] == "xspf", "XSPF", gui.level_2_click):
+			current["type"] = "xspf"
+		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
+			current["type"] = "m3u"
+		type_changed = old_type != current["type"]
+
 		cur_path = self.directory_text_box.text
 		
 		if cur_path.endswith("/"):
@@ -22433,6 +22441,8 @@ class ExportPlaylistBox:
 			original_playlist.playlist_file = ""
 		else:
 			ddt.text((ecks, why + 8 * gui.scale), _("Save file"), colours.grey(230), 11)
+			if type_changed:
+				self.directory_box_text.text = self.tauon.remove_extension(cur_path) + "." + current["type"]
 			if cur_path.endswith(".xspf"):
 				current["type"] = "xspf"
 				original_playlist.playlist_file = self.directory_text_box.text
@@ -22442,12 +22452,6 @@ class ExportPlaylistBox:
 			else:
 				current["path"] = self.tauon.get_containing_folder(cur_path)
 				original_playlist.playlist_file = cur_path
-
-		y += round(30 * gui.scale)
-		if self.pref_box.toggle_square(x, y, current["type"] == "xspf", "XSPF", gui.level_2_click):
-			current["type"] = "xspf"
-		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
-			current["type"] = "m3u"
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
 		y += round(48 * gui.scale)
@@ -22483,6 +22487,8 @@ class ExportPlaylistBox:
 
 		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
+				if cur_path.endswith("/"):
+					original_playlist.playlist_file = cur_path + original_playlist.title + "." + current["type"]
 				if not cur_path.endswith(".m3u8"):
 					original_playlist.playlist_file = self.tauon.remove_extension(cur_path) + "." + current["type"]
 				self.run_export(current, self.id, warnings=True)
