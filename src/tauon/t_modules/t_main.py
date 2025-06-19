@@ -5803,6 +5803,7 @@ class Tauon:
 		self.message_box                          = MessageBox(tauon=self)
 		self.search_text                          = self.search_over.search_text
 		self.sync_target                          = TextBox2(tauon=self)
+		self.playlist_folder_box                  = TextBox2(tauon=self)
 		self.edge_playlist2                       = EdgePulse2(tauon=self)
 		self.lyric_side_top_pulse                 = EdgePulse2(tauon=self)
 		self.lyric_side_bottom_pulse              = EdgePulse2(tauon=self)
@@ -8078,7 +8079,10 @@ class Tauon:
 			return 1
 		
 		if not direc or direc == "see playlist_file":
-			direc = str(self.user_directory / "playlists")
+			if prefs.playlist_folder_path:
+				direc = prefs.playlist_folder_path
+			else:
+				direc = str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
 		
@@ -22331,7 +22335,7 @@ class ExportPlaylistBox:
 		self.is_generator = False
 		self.directory_text_box = TextBox2(tauon)
 		self.default = {
-			"path": str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
+			"path": str(prefs.playlist_folder_path) if ( prefs.playlist_folder_path and playlist_folder_path != "" ) else str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
 			"type": "m3u",
 			"relative": False,
 			"auto": False,
@@ -24220,6 +24224,30 @@ class Over:
 				x, y, prefs.use_gamepad, _("Enable use of gamepad as input"),
 				subtitle=_("Change requires restart"))
 			y += 37 * gui.scale
+
+			ddt.text((x, y + 8 * gui.scale), _("Playlist folder"), colours.grey(230), 11)
+			y += round(30 * gui.scale)
+			rect1 = (x, y, round(450 * gui.scale), round(16 * gui.scale))
+			self.fields.add(rect1)
+			# ddt.rect(rect1, [40, 40, 40, 255], True)
+			ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
+
+			if playlist_folder_path == "":
+				tauon.playlist_folder_box.text = str(tauon.user_directory / "playlists")
+			else:
+				tauon.playlist_folder_box.text = prefs.playlist_folder_path
+			tauon.playlist_folder_box.draw(
+				x + round(4 * gui.scale), y, colours.box_input_text, True,
+				width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
+			prefs.playlist_folder_path = tauon.playlist_folder_box.text
+			y += round(30* gui.scale)
+			ddt.text((x, y - 8 * gui.scale), _("Determines starting directory for relative track paths"), colours.grey(230), 11)
+
+
+			y += 37 * gui.scale
+			prefs.autoscan_playlist_folder = self.toggle_square(
+				x, y, prefs.autoscan_playlist_folder, _("Also auto-import new files from playlist folder?"),
+				subtitle=_("PLACEHOLDER"))
 
 		elif self.func_page == 3:
 			y += 23 * gui.scale
@@ -36842,6 +36870,9 @@ def save_prefs(bag: Bag) -> None:
 	cf.update_value("encode-output-dir", prefs.custom_encoder_output)
 	cf.update_value("sync-device-music-dir", prefs.sync_target)
 	cf.update_value("add_download_directory", prefs.download_dir1)
+
+	cf.update_value("autoscan_playlist_folder", prefs.autoscan_playlist_folder)
+	cf.update_value("playlist_folder_path", prefs.playlist_folder_path)
 
 	cf.update_value("use-system-tray", prefs.use_tray)
 	cf.update_value("use-gamepad", prefs.use_gamepad)
