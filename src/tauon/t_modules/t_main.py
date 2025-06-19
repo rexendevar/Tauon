@@ -22504,6 +22504,8 @@ class ExportPlaylistBox:
 				return
 		if not path.endswith("/"):
 			path += "." + current["type"]
+		else:
+			path += original_playlist.title + "." + current["type"]
 		target = ""
 		if current["type"] == "xspf":
 			target = self.tauon.export_xspf(self.pctl.id_to_pl(id), direc=path, relative=current["relative"], show=False)
