@@ -22482,8 +22482,8 @@ class ExportPlaylistBox:
 		x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
 
 		self.prefs.playlist_exports[self.id] = current
-
-		# TODO: add some indication that settings are saved every frame, or perhaps a save button that just closes the box
+ 
+		# TODO: add some indication that settings are saved every frame, or perhaps a save button that just closes the box 
 
 		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
