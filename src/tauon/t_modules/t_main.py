@@ -22335,7 +22335,7 @@ class ExportPlaylistBox:
 		self.is_generator = False
 		self.directory_text_box = TextBox2(tauon)
 		self.default = {
-			"path": str(prefs.playlist_folder_path) if ( prefs.playlist_folder_path and playlist_folder_path != "" ) else str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
+			"path": str(self.prefs.playlist_folder_path) if self.prefs.playlist_folder_path else str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
 			"type": "m3u",
 			"relative": False,
 			"auto": False,
@@ -22452,7 +22452,7 @@ class ExportPlaylistBox:
 		assert_fpm_this_frame = old_fpm != current["full_path_mode"] # did the user change fpm setting this frame?
 
 		ww = ddt.get_text_w(_("Full path (not just directory)"), 211) + 8
-		if self.draw.button(_("?"), x + round(405 * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
+		if self.draw.button(_("?"), x + round(ww * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
 			self.show_message(
 					_("Determines where the playlist file is saved"),
 					_("In full path mode, the playlist will write to the EXACT FILE shown in the box. Otherwise,"),
