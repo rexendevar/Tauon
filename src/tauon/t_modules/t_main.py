@@ -22586,7 +22586,7 @@ class ExportPlaylistBox:
 
 		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
-				self.run_export(current, self.id, warnings=False) # TODO: why the warnings
+				self.run_export(current, self.id, warnings=True)
 			else:
 				self.show_message(
 					_("Export error"),
@@ -22604,10 +22604,10 @@ class ExportPlaylistBox:
 		if not original_playlist.playlist_file or original_playlist.playlist_file == "":
 			path = current["path"]
 			if not os.path.isdir(path):
-				if warnings:
-					self.show_message(_("Directory does not exist"), mode="warning")
-					return
-				else:
+				# if warnings:
+				#	self.show_message(_("Directory does not exist"), mode="warning")
+				#	return
+				# else:
 					pass # if no warnings, fuck it, make the directories
 		else:
 			path = "see playlist_file"
@@ -22617,7 +22617,7 @@ class ExportPlaylistBox:
 		if current["type"] == "m3u":
 			target = self.tauon.export_m3u(self.pctl.id_to_pl(id), direc=path, relative=current["relative"], show=False)
 
-		if target != 1:
+		if warnings and target != 1:
 			self.show_message(_("Playlist exported"), target, mode="done")
 
 class SearchOverlay:
