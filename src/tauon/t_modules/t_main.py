@@ -22576,9 +22576,9 @@ class ExportPlaylistBox:
 		y += round(30 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		if self.is_generator:
-			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
+			# ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
-		elif not current["full_path_mode"] or current["type"] == "broken":
+		elif not original_playlist.playlist_file:
 			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		else:
