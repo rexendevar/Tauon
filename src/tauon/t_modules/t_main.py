@@ -22355,6 +22355,7 @@ class ExportPlaylistBox:
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
 		self.save_text_frames = 0
+		self.save_text_time = 5 # how many frames to show save text
 
 	def activate(self, playlist: int) -> None:
 		"""runs when the playlist export menu is opened"""
@@ -22487,7 +22488,6 @@ class ExportPlaylistBox:
 					self.directory_text_box.text = self.directory_text_box.text[:-1]
 				# and then put it back plus titkle and format
 				self.directory_text_box.text = self.directory_text_box.text + "/" + original_playlist.title + "." + current["type"]
-			self.save_text_frames = 15
 		if assert_type_this_frame: # if user switched types
 			if self.file_or_folder == "file":
 				if current["type"] == "m3u":
@@ -22498,7 +22498,6 @@ class ExportPlaylistBox:
 						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".xspf"
 					if self.directory_text_box.text.endswith(".m3u"):
 						self.directory_text_box.text = self.directory_text_box.text[:-4] + ".xspf"
-			self.save_text_frames = 15
 			
 		# parse box text and convert to options if possible
 		# remember this runs every single frame
@@ -22535,8 +22534,6 @@ class ExportPlaylistBox:
 					_("Disabled: tracks will be located from root folder, e.g. \"/home/user/music_path/artist/album/track.mp3\"."),
 					_("Enabled: tracks will be located from where the playlist is saved, e.g. \"../artist/album/track.mp3\"."))
 			# TODO: make sense of these for windows and mac
-		if current["relative"] != old_rel:
-			self.save_text_frames = 15
 
 		# auto export and auto import boxes
 		y += round(30 * gui.scale)
@@ -22552,17 +22549,19 @@ class ExportPlaylistBox:
 			current["auto_imp"] = False
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
-		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"]:
-			self.save_text_frames = 15
 
-		if self.directory_text_box.text != old_text:
-			self.save_text_frames = max(5, self.save_text_frames)
 		
 		# lie to the user
 		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
+		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"] or \
+			old_rel != current["relative"] or old_text != self.directory_text_box.text or\
+				assert_fof_this_frame or assert_type_this_frame:
+			
+			self.save_text_frames = self.save_text_time
+
 		if self.save_text_frames > 0:
 			ww = ddt.get_text_w(_("Saving..."), 209)
-			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
+			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(15 * gui.scale))
 			ddt.text((x, y- round(30*gui.scale)), _("Saving..."), colours.grey(230), 11)
 			self.save_text_frames -= 1
 		
@@ -22573,13 +22572,7 @@ class ExportPlaylistBox:
 		self.prefs.playlist_exports[self.id] = current
 
 		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
-			if current["type"] != "broken":
-				self.run_export(current, self.id, warnings=True)
-			else:
-				self.show_message(
-					_("Export error"),
-					_("Correct your filepath or select a format, then try again."),
-					mode = "warning")
+			self.run_export(current, self.id, warnings=True)
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
