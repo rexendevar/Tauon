@@ -6614,7 +6614,6 @@ class Tauon:
 		export_entry["auto"] = True
 		export_entry["auto_imp"] = True
 		export_entry["relative"] = True # note for flynn do logic here actually dont it's not worth it
-		export_entry["full_path_mode"] = True
 		self.prefs.playlist_exports[id] = export_entry
 
 		self.gui.update = 1
@@ -6883,7 +6882,6 @@ class Tauon:
 		export_entry["auto"] = True
 		export_entry["auto_imp"] = True
 		export_entry["relative"] = True # note for flynn do logic here actually dont it's not worth it
-		export_entry["full_path_mode"] = True
 		self.prefs.playlist_exports[id] = export_entry
 
 		# logging.info("Finished importing XSPF")
@@ -22349,7 +22347,6 @@ class ExportPlaylistBox:
 			"relative": False,
 			"auto": False,
 			"auto_imp": False,
-			"full_path_mode": False,
 		}
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
@@ -22383,7 +22380,7 @@ class ExportPlaylistBox:
 				original_playlist = item
 
 		w = 500 * gui.scale
-		h = 184 * gui.scale
+		h = 182 * gui.scale
 		x = int(self.window_size[0] / 2) - int(w / 2)
 		y = int(self.window_size[1] / 2) - int(h / 2)
 
@@ -22404,10 +22401,6 @@ class ExportPlaylistBox:
 		# but only run this once or some boxes will be unusable
 		if not self.has_it_run_yet:
 			self.is_generator = (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
-			try:
-				current["full_path_mode"]
-			except:
-				current["full_path_mode"] = False
 
 			try:
 				current["auto_imp"]
@@ -22415,7 +22408,6 @@ class ExportPlaylistBox:
 				current["auto_imp"] = False
 
 			if original_playlist.playlist_file:
-				current["full_path_mode"] = True
 				self.file_or_folder = "file"
 			if current["type"] == "broken":
 				current["type"] = "m3u"
@@ -22439,7 +22431,7 @@ class ExportPlaylistBox:
 
 
 		# load text box text from values saved at the end of each frame
-		if not current["full_path_mode"] or not original_playlist.playlist_file:
+		if not original_playlist.playlist_file:
 			self.directory_text_box.text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
@@ -22464,10 +22456,7 @@ class ExportPlaylistBox:
 		# if line ends in relevant extension (xspf, m3u, m3u8), interpret as file and correct the type entry
 		# if line ends in neither, interpret as folder and do not touch type
 
-		# after all this processing, change current["full_path_mode"] depending on file or folder
-
 		# further functions will receive the same data as currently implemented: 
-		# current["full_path_mode"] will be tied directly to the file or folder box
 		# none of the data going out should be any different than before
 		# after button and text box processing, write to current["path"] and original_playlist.playlist_file
 
@@ -22483,9 +22472,9 @@ class ExportPlaylistBox:
 		btn_ww = max( ddt.get_text_w(_("file"), 211), ddt.get_text_w(_("folder"), 211))
 		ecks = x
 		why = y
-		x += (470 - btn_ww) * gui.scale
-		ww = ddt.get_text_w(_("Path will interpret as "), 211) + 8
-		ddt.text((x - round(ww * gui.scale), y- round(1*gui.scale)), _("Path will interpret as "), colours.grey(230), 15)
+		x += (455 - btn_ww) * gui.scale
+		ww = ddt.get_text_w(_("Path will interpret as "), 211)
+		ddt.text((x - round(ww * gui.scale), y), _("Path will interpret as "), colours.grey(230), 15)
 		# button to toggle file/folder
 		old_fof = self.file_or_folder
 		if self.file_or_folder == "file":
@@ -22579,7 +22568,7 @@ class ExportPlaylistBox:
 			# ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		elif not original_playlist.playlist_file:
-			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
+			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a specific file)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round(130*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
@@ -22595,7 +22584,7 @@ class ExportPlaylistBox:
 
 		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
-				self.run_export(current, self.id, warnings=True)
+				self.run_export(current, self.id, warnings=False) # TODO: why the warnings
 			else:
 				self.show_message(
 					_("Export error"),
@@ -22615,7 +22604,9 @@ class ExportPlaylistBox:
 			if not os.path.isdir(path):
 				if warnings:
 					self.show_message(_("Directory does not exist"), mode="warning")
-				return
+					return
+				else:
+					pass # if no warnings, fuck it, make the directories
 		else:
 			path = "see playlist_file"
 		target = ""
