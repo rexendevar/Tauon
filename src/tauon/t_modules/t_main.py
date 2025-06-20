@@ -22487,7 +22487,7 @@ class ExportPlaylistBox:
 					self.directory_text_box.text = self.directory_text_box.text[:-1]
 				# and then put it back plus titkle and format
 				self.directory_text_box.text = self.directory_text_box.text + "/" + original_playlist.title + "." + current["type"]
-			self.save_text_frames = 5
+			self.save_text_frames = 15
 		if assert_type_this_frame: # if user switched types
 			if self.file_or_folder == "file":
 				if current["type"] == "m3u":
@@ -22498,7 +22498,7 @@ class ExportPlaylistBox:
 						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".xspf"
 					if self.directory_text_box.text.endswith(".m3u"):
 						self.directory_text_box.text = self.directory_text_box.text[:-4] + ".xspf"
-			self.save_text_frames = 5
+			self.save_text_frames = 15
 			
 		# parse box text and convert to options if possible
 		# remember this runs every single frame
@@ -22552,7 +22552,7 @@ class ExportPlaylistBox:
 		# lie to the user
 		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
 		if self.directory_text_box.text != old_text:
-			self.save_text_frames = 5
+			self.save_text_frames = 2
 		
 		if self.save_text_frames > 0:
 			ww = ddt.get_text_w(_("Saving..."), 209)
