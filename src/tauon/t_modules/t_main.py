@@ -22383,7 +22383,7 @@ class ExportPlaylistBox:
 				original_playlist = item
 
 		w = 500 * gui.scale
-		h = 220 * gui.scale
+		h = 184 * gui.scale
 		x = int(self.window_size[0] / 2) - int(w / 2)
 		y = int(self.window_size[1] / 2) - int(h / 2)
 
@@ -22426,10 +22426,13 @@ class ExportPlaylistBox:
 		x += round(15 * gui.scale)
 		y += round(25 * gui.scale)
 
-		ddt.text((x, y + 8 * gui.scale), _("Save location"), colours.grey(230), 11)
+		if self.file_or_folder == "folder":
+			ddt.text((x, y + 8 * gui.scale), _("Save location"), colours.grey(230), 11)
+		else:
+			ddt.text((x, y + 8 * gui.scale), _("Save file"), colours.grey(230), 11)
 		y += round(30 * gui.scale)
 
-		rect1 = (x, y, round(450 * gui.scale), round(16 * gui.scale))
+		rect1 = (x, y, round(470 * gui.scale), round(16 * gui.scale))
 		self.fields.add(rect1)
 		# ddt.rect(rect1, [40, 40, 40, 255], True)
 		ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
@@ -22476,9 +22479,14 @@ class ExportPlaylistBox:
 			current["type"] = "m3u"
 		assert_type_this_frame = old_type != current["type"] # did the user change the file type this frame?
 
-		# button to toggle file/folder
+		# align file/folder button to right side of text box
+		btn_ww = max( ddt.get_text_w(_("file"), 211), ddt.get_text_w(_("folder"), 211))
+		ecks = x
+		why = y
+		x += (470 - btn_ww) * gui.scale
 		ww = ddt.get_text_w(_("Path will interpret as "), 211) + 8
-		ddt.text((x + round(160 * gui.scale), y- round(1*gui.scale)), _("Path will interpret as "), colours.grey(230), 11)
+		ddt.text((x - round(ww * gui.scale), y- round(1*gui.scale)), _("Path will interpret as "), colours.grey(230), 15)
+		# button to toggle file/folder
 		old_fof = self.file_or_folder
 		if self.file_or_folder == "file":
 			if self.draw.button(_("file"), x + round( (160+ww) * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
@@ -22487,6 +22495,8 @@ class ExportPlaylistBox:
 			if self.draw.button(_("folder"), x + round( (160+ww) * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
 				self.file_or_folder = "file"
 		assert_fof_this_frame = old_fof != self.file_or_folder # did user swap from file to folder this frame?
+		x = ecks
+		y = why
 
 		# parse button changes
 		if assert_fof_this_frame: # if user pressed file/folder button
@@ -22550,7 +22560,7 @@ class ExportPlaylistBox:
 
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
-		y += round(48 * gui.scale)
+		y += round(30 * gui.scale)
 		current["relative"] = self.pref_box.toggle_square(
 			x, y, current["relative"], _("Relative paths for tracks"),
 			gui.level_2_click)
@@ -22563,7 +22573,7 @@ class ExportPlaylistBox:
 			# TODO: make sense of these for windows and mac
 
 		# auto export and auto import boxes
-		y += round(48 * gui.scale)
+		y += round(30 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		if self.is_generator:
 			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
