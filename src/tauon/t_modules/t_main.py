@@ -1925,12 +1925,12 @@ class PlayerCtl:
 				# tauon checks file size to determine if there have been any changes
 				elif os.path.getsize(new_playlist.playlist_file) != new_playlist.file_size:
 					if export_entry["type"] == "m3u":
-						playlist,_ = self.tauon.parse_m3u(new_playlist.playlist_file)
+						playlist,radio = self.tauon.parse_m3u(new_playlist.playlist_file)
 						new_playlist.playlist_ids = playlist.copy()
 						new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
 						logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
 					elif export_entry["type"] == "xspf":
-						playlist,_,_ = self.tauon.parse_xspf(new_playlist.playlist_file)
+						playlist,radio,name = self.tauon.parse_xspf(new_playlist.playlist_file)
 						new_playlist.playlist_ids = playlist.copy()
 						new_playlist.file_size = os.path.getsize(new_playlist.playlist_file)
 						logging.info(f"Reloaded playlist \"{new_playlist.title}\" from changed file")
