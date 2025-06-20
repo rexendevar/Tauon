@@ -22480,7 +22480,7 @@ class ExportPlaylistBox:
 		# parse button changes
 		if assert_fof_this_frame: # if user pressed file/folder button
 			if self.file_or_folder == "folder": # to change to folder:
-				# remove extension and replace with trailing slash
+				# remove filename and replace with trailing slash
 				self.directory_text_box.text = self.tauon.get_containing_folder ( self.directory_text_box.text ) + "/"
 			else: # to change to file:
 				# remove possible trailing slash
