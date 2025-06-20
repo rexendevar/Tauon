@@ -22495,18 +22495,19 @@ class ExportPlaylistBox:
 		if assert_fof_this_frame: # if user pressed file/folder button
 			if self.file_or_folder == "folder": # to change to folder:
 				# remove extension and replace with trailing slash
-				if self.directory_text_box.text.endswith(".xspf"):
-					self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
-				elif self.directory_text_box.text.endswith(".m3u8"):
-					self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
-				elif self.directory_text_box.text.endswith(".m3u"):
-					self.directory_text_box.text = self.directory_text_box.text[:-4] + "/"
+				#if self.directory_text_box.text.endswith(".xspf"):
+				#	self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
+				#elif self.directory_text_box.text.endswith(".m3u8"):
+				#	self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
+				#elif self.directory_text_box.text.endswith(".m3u"):
+				#	self.directory_text_box.text = self.directory_text_box.text[:-4] + "/"
+				self.directory_text_box.text = self.tauon.get_containing_folder ( self.directory_text_box.text ) + "/"
 			else: # to change to file:
 				# remove possible trailing slash
 				if self.directory_text_box.text.endswith("/"):
 					self.directory_text_box.text = self.directory_text_box.text[:-1]
-				# and add relevant extension
-				self.directory_text_box.text = self.directory_text_box.text + "." + current["type"]
+				# and then put it back plus titkle and format
+				self.directory_text_box.text = self.directory_text_box.text + "/" + original_playlist.title + "." + current["type"]
 		if assert_type_this_frame: # if user switched types
 			if self.file_or_folder == "folder": 
 				pass # don't do anything to the text
