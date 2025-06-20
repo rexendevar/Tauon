@@ -22524,6 +22524,7 @@ class ExportPlaylistBox:
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
 		y += round(30 * gui.scale)
+		old_rel = current["relative"]
 		current["relative"] = self.pref_box.toggle_square(
 			x, y, current["relative"], _("Relative paths for tracks"),
 			gui.level_2_click)
@@ -22534,11 +22535,15 @@ class ExportPlaylistBox:
 					_("Disabled: tracks will be located from root folder, e.g. \"/home/user/music_path/artist/album/track.mp3\"."),
 					_("Enabled: tracks will be located from where the playlist is saved, e.g. \"../artist/album/track.mp3\"."))
 			# TODO: make sense of these for windows and mac
+		if current["relative"] != old_rel:
+			self.save_text_frames = 15
 
 		# auto export and auto import boxes
 		y += round(30 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		ww = ddt.get_text_w(_("Auto-export"), 211)
+		old_auto = current["auto"]
+		old_auto_imp = current["auto_imp"]
 		if self.is_generator:
 			# ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
@@ -22547,13 +22552,14 @@ class ExportPlaylistBox:
 			current["auto_imp"] = False
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
-			
+		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"]:
+			self.save_text_frames = 15
 
+		if self.directory_text_box.text != old_text:
+			self.save_text_frames = max(5, self.save_text_frames)
+		
 		# lie to the user
 		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
-		if self.directory_text_box.text != old_text:
-			self.save_text_frames = 2
-		
 		if self.save_text_frames > 0:
 			ww = ddt.get_text_w(_("Saving..."), 209)
 			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
