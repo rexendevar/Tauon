@@ -22352,10 +22352,11 @@ class ExportPlaylistBox:
 			"auto": False,
 			"auto_imp": False,
 		}
+		self.save_text_time = 10 # how many frames to show save text
+		# temp settings - not 
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
 		self.save_text_frames = 0
-		self.save_text_time = 10 # how many frames to show save text
 		self.temp_auto_imp = False # store auto import if user toggles file/folder multiple times
 
 	def activate(self, playlist: int) -> None:
@@ -22555,12 +22556,13 @@ class ExportPlaylistBox:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 
 		
-		# if anything changed this frame, the save text will display for the next 5 frames
+		# if anything changed this frame, the save text will display for the next x frames
 		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"] or \
-			old_rel != current["relative"] or old_text != self.directory_text_box.text or\
+			old_rel != current["relative"] or\
 				assert_fof_this_frame or assert_type_this_frame:
-			
 			self.save_text_frames = self.save_text_time
+		if old_text != self.directory_text_box.text: # lasts longer with this change idk why
+			self.save_text_frames = max(1, self.save_text_frames)
 
 		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
 		if self.save_text_frames > 0:
