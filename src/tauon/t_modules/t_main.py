@@ -22565,14 +22565,15 @@ class ExportPlaylistBox:
 		# auto export and auto import boxes
 		y += round(30 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
+		ww = ddt.get_text_w(_("Auto-export"), 211)
 		if self.is_generator:
 			# ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		elif not original_playlist.playlist_file:
-			ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a specific file)"), colours.grey(230), 11)
+			ddt.text((x + round( (ww + 30) * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a specific file)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		else:
-			current["auto_imp"] = self.pref_box.toggle_square(x + round(130*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
+			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 			
 
 		y += round(0 * gui.scale)
