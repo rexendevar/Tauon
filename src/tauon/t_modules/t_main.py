@@ -8090,8 +8090,9 @@ class Tauon:
 			direc = self.get_containing_folder( self.pctl.multi_playlist[pl].playlist_file )
 			if not direc:
 				direc = self.export_playlist_box.default["path"] # str(self.user_directory / "playlists")
-			if not os.path.exists(direc):
-				os.makedirs(direc)
+				# this should never happen
+		if not os.path.exists(direc):
+			os.makedirs(direc)
 		
 		if self.pctl.multi_playlist[pl].playlist_file:
 			# if the playlist has a file attribute:
@@ -8142,14 +8143,14 @@ class Tauon:
 		if len(self.pctl.multi_playlist[pl].playlist_ids) < 1:
 			self.show_message(_("There are no tracks in this playlist. Nothing to export"))
 			return 1
-
-		if not direc:
-			direc = str(self.user_directory / "playlists")
-			if not os.path.exists(direc):
-				os.makedirs(direc)
-
-		if direc != "see playlist_file":
-			target = os.path.join(direc, self.pctl.multi_playlist[pl].title + ".xspf")
+		
+		if not direc or direc == "see playlist_file":
+			direc = self.get_containing_folder( self.pctl.multi_playlist[pl].playlist_file )
+			if not direc:
+				direc = self.export_playlist_box.default["path"] # str(self.user_directory / "playlists")
+				# this should never happen
+		if not os.path.exists(direc):
+			os.makedirs(direc)
 		
 		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
 			# if the playlist has a file attribute:
@@ -22615,7 +22616,7 @@ class ExportPlaylistBox:
 		if current["type"] == "m3u":
 			target = self.tauon.export_m3u(self.pctl.id_to_pl(id), direc=path, relative=current["relative"], show=False)
 
-		if warnings and target != 1:
+		if target != 1:
 			self.show_message(_("Playlist exported"), target, mode="done")
 
 class SearchOverlay:
