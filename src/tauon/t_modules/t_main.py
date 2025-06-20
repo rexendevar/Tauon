@@ -22489,10 +22489,10 @@ class ExportPlaylistBox:
 		# button to toggle file/folder
 		old_fof = self.file_or_folder
 		if self.file_or_folder == "file":
-			if self.draw.button(_("file"), x + round( (160+ww) * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
+			if self.draw.button(_("file"), x, y - (3*gui.scale), press=gui.level_2_click):
 				self.file_or_folder = "folder"
 		else:
-			if self.draw.button(_("folder"), x + round( (160+ww) * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
+			if self.draw.button(_("folder"), x, y - (3*gui.scale), press=gui.level_2_click):
 				self.file_or_folder = "file"
 		assert_fof_this_frame = old_fof != self.file_or_folder # did user swap from file to folder this frame?
 		x = ecks
