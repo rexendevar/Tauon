@@ -22354,6 +22354,7 @@ class ExportPlaylistBox:
 		}
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
+		self.save_text_frames = 0
 
 	def activate(self, playlist: int) -> None:
 		"""runs when the playlist export menu is opened"""
@@ -22362,6 +22363,7 @@ class ExportPlaylistBox:
 		self.id = self.pctl.pl_to_id(playlist)
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
+		self.save_text_frames = 0
 
 		# Prune old enteries
 		ids = []
@@ -22437,32 +22439,15 @@ class ExportPlaylistBox:
 		# load text box text from values saved at the end of each frame
 		if not original_playlist.playlist_file:
 			self.directory_text_box.text = current["path"]
+			old_text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
+			old_text = original_playlist.playlist_file
 
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
 
-		# first read from buttons: m3u, xspf, file/folder
-		# unterminated line will be interpreted as folder
-		# if they have changed this frame, update the text box as follows:
-		# if switched to folder, remove relevant extension and add trailing slash
-		# make sure to not remove unaccounted for extensions
-		# if switched to file, remove remove possible trailing slash and add extension
-
-		# path should always have relevant extension if it's interpreted as a file.
-		# if type switched and in file mode, remove extension and add new correct extension
-
-		# after button changes are parsed, read from the text
-		# this should always interpret every frame even if the buttons haven't been pressed in a while.
-		# if the line ends in a trailing slash, interpret as folder - do not touch type
-		# if line ends in relevant extension (xspf, m3u, m3u8), interpret as file and correct the type entry
-		# if line ends in neither, interpret as folder and do not touch type
-
-		# further functions will receive the same data as currently implemented: 
-		# none of the data going out should be any different than before
-		# after button and text box processing, write to current["path"] and original_playlist.playlist_file
 
 		old_type = current["type"]
 		y += round(30 * gui.scale)
@@ -22495,12 +22480,6 @@ class ExportPlaylistBox:
 		if assert_fof_this_frame: # if user pressed file/folder button
 			if self.file_or_folder == "folder": # to change to folder:
 				# remove extension and replace with trailing slash
-				#if self.directory_text_box.text.endswith(".xspf"):
-				#	self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
-				#elif self.directory_text_box.text.endswith(".m3u8"):
-				#	self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
-				#elif self.directory_text_box.text.endswith(".m3u"):
-				#	self.directory_text_box.text = self.directory_text_box.text[:-4] + "/"
 				self.directory_text_box.text = self.tauon.get_containing_folder ( self.directory_text_box.text ) + "/"
 			else: # to change to file:
 				# remove possible trailing slash
@@ -22508,9 +22487,8 @@ class ExportPlaylistBox:
 					self.directory_text_box.text = self.directory_text_box.text[:-1]
 				# and then put it back plus titkle and format
 				self.directory_text_box.text = self.directory_text_box.text + "/" + original_playlist.title + "." + current["type"]
+			self.save_text_frames = 5
 		if assert_type_this_frame: # if user switched types
-			if self.file_or_folder == "folder": 
-				pass # don't do anything to the text
 			if self.file_or_folder == "file":
 				if current["type"] == "m3u":
 					if self.directory_text_box.text.endswith(".xspf"): # should be always but i don't wanna rebuild if i'm wrong
@@ -22520,16 +22498,8 @@ class ExportPlaylistBox:
 						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".xspf"
 					if self.directory_text_box.text.endswith(".m3u"):
 						self.directory_text_box.text = self.directory_text_box.text[:-4] + ".xspf"
+			self.save_text_frames = 5
 			
-
-		# next up: parse contents of text box
-		# i don't think this steps on previous block's toes
-		# after button changes are parsed, read from the text
-		# this should always interpret every frame even if the buttons haven't been pressed in a while.
-		# if the line ends in a trailing slash, interpret as folder - do not touch type
-		# if line ends in relevant extension (xspf, m3u, m3u8), interpret as file and correct the type entry
-		# if line ends in neither, interpret as folder and do not touch type
-
 		# parse box text and convert to options if possible
 		# remember this runs every single frame
 		if self.directory_text_box.text.endswith("/"):
@@ -22542,9 +22512,8 @@ class ExportPlaylistBox:
 			current["type"] = "m3u"
 		else: # if there's no trailing slash OR extension:
 			self.file_or_folder = "folder"
-		
 
-		# past this point the path is more or less set. we can save the path now
+		# save the path
 		if self.file_or_folder == "file":
 			original_playlist.playlist_file = self.directory_text_box.text
 			current["path"] = self.default["path"]
@@ -22580,13 +22549,22 @@ class ExportPlaylistBox:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 			
 
+		# lie to the user
+		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
+		if self.directory_text_box.text != old_text:
+			self.save_text_frames = 5
+		
+		if self.save_text_frames > 0:
+			ww = ddt.get_text_w(_("Saving..."), 155)
+			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
+			ddt.text((x, y- round(30*gui.scale)), _("Saving..."), colours.grey(230), 11)
+			self.save_text_frames -= 1
+		
 		y += round(0 * gui.scale)
 		ww = ddt.get_text_w(_("Export now"), 211)
 		x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
 
 		self.prefs.playlist_exports[self.id] = current
-
-		# TODO: add some indication that settings are saved every frame, or perhaps a save button that just closes the box
 
 		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
 			if current["type"] != "broken":
