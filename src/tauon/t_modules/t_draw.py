@@ -448,6 +448,8 @@ class TDraw:
 		sdl3.SDL_RenderLine(self.renderer, round(x1), round(y1), round(x2), round(y2))
 
 	def get_text_w(self, text: str, font: int, height: bool = False) -> int:
+		'''field 2 "font" refers to Tauon font codes defined in t_main -> prime_fonts().
+		pick the code for about half the size you're actually using - technical debt lol'''
 
 		x, y = self.get_text_wh(text, font, 3000)
 		if height:

@@ -22555,7 +22555,7 @@ class ExportPlaylistBox:
 			self.save_text_frames = 5
 		
 		if self.save_text_frames > 0:
-			ww = ddt.get_text_w(_("Saving..."), 155)
+			ww = ddt.get_text_w(_("Saving..."), 209)
 			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
 			ddt.text((x, y- round(30*gui.scale)), _("Saving..."), colours.grey(230), 11)
 			self.save_text_frames -= 1
