@@ -472,27 +472,6 @@ class TDraw:
 
 		self.f_dict[user_handle] = (name + " " + str(size * self.scale), offset, size * self.scale)
 
-	def get_text_wh(self, text: str, font: int, max_x: int, wrap: bool = False) -> tuple[int, int] | None:
-
-		if system == "Linux":
-			self.layout.set_font_description(Pango.FontDescription(self.f_dict[font][0]))
-			self.layout.set_ellipsize(Pango.EllipsizeMode.END)
-			self.layout.set_width(max_x * 1000)
-			if wrap:
-				self.layout.set_height(20000 * 1000)
-			else:
-				self.layout.set_height(0)
-
-			try:
-				self.layout.set_text(text, -1)
-			except Exception:
-				logging.exception(f"Exception in get_text_wh for: {text}")
-				self.layout.set_text(text.encode("utf-8", "replace").decode("utf-8"), -1)
-
-			return self.layout.get_pixel_size()
-		#return self.__win_text_xy(text, font)
-		return self.__win_text_xy(text, font, max_x, wrap)
-
 	def get_y_offset(self, text: str, font: int, max_x: int, wrap: bool = False) -> int:
 		"""HACKY"""
 		self.layout.set_font_description(Pango.FontDescription(self.f_dict[font][0]))
