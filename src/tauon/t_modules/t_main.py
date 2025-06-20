@@ -22355,7 +22355,8 @@ class ExportPlaylistBox:
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
 		self.save_text_frames = 0
-		self.save_text_time = 5 # how many frames to show save text
+		self.save_text_time = 10 # how many frames to show save text
+		self.temp_auto_imp = False # store auto import if user toggles file/folder multiple times
 
 	def activate(self, playlist: int) -> None:
 		"""runs when the playlist export menu is opened"""
@@ -22365,6 +22366,7 @@ class ExportPlaylistBox:
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
 		self.save_text_frames = 0
+		self.temp_auto_imp = False
 
 		# Prune old enteries
 		ids = []
@@ -22404,8 +22406,7 @@ class ExportPlaylistBox:
 		if not current:
 			current = copy.copy(self.default)
 
-		# are we in full path mode?
-		# but only run this once or some boxes will be unusable
+		# load some data
 		if not self.has_it_run_yet:
 			self.is_generator = (self.pctl.gen_codes.get(self.id) and "self" not in self.pctl.gen_codes[self.id])
 
@@ -22413,11 +22414,10 @@ class ExportPlaylistBox:
 				current["auto_imp"]
 			except:
 				current["auto_imp"] = False
+			self.temp_auto_imp = current["auto_imp"]
 
 			if original_playlist.playlist_file:
 				self.file_or_folder = "file"
-			if current["type"] == "broken":
-				current["type"] = "m3u"
 		self.has_it_run_yet = True
 
 		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Import/Export Playlist"), colours.grey(230), 213)
@@ -22440,10 +22440,9 @@ class ExportPlaylistBox:
 		# load text box text from values saved at the end of each frame
 		if not original_playlist.playlist_file:
 			self.directory_text_box.text = current["path"]
-			old_text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
-			old_text = original_playlist.playlist_file
+		old_text = self.directory_text_box.text
 
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
@@ -22482,12 +22481,14 @@ class ExportPlaylistBox:
 			if self.file_or_folder == "folder": # to change to folder:
 				# remove filename and replace with trailing slash
 				self.directory_text_box.text = self.tauon.get_containing_folder ( self.directory_text_box.text ) + "/"
+				self.temp_auto_imp = current["auto_imp"]
 			else: # to change to file:
 				# remove possible trailing slash
 				if self.directory_text_box.text.endswith("/"):
 					self.directory_text_box.text = self.directory_text_box.text[:-1]
 				# and then put it back plus titkle and format
 				self.directory_text_box.text = self.directory_text_box.text + "/" + original_playlist.title + "." + current["type"]
+				current["auto_imp"] = self.temp_auto_imp
 		if assert_type_this_frame: # if user switched types
 			if self.file_or_folder == "file":
 				if current["type"] == "m3u":
@@ -22503,6 +22504,7 @@ class ExportPlaylistBox:
 		# remember this runs every single frame
 		if self.directory_text_box.text.endswith("/"):
 			self.file_or_folder = "folder"
+			current["auto_imp"] = False
 		elif self.directory_text_box.text.endswith(".xspf"):
 			self.file_or_folder = "file"
 			current["type"] = "xspf"
@@ -22511,6 +22513,8 @@ class ExportPlaylistBox:
 			current["type"] = "m3u"
 		else: # if there's no trailing slash OR extension:
 			self.file_or_folder = "folder"
+			current["auto_imp"] = False
+			# TODO: on linux you can make a folder called "folder.jpg" for example. same on other OS?
 
 		# save the path
 		if self.file_or_folder == "file":
@@ -22536,32 +22540,32 @@ class ExportPlaylistBox:
 			# TODO: make sense of these for windows and mac
 
 		# auto export and auto import boxes
+		old_auto = current["auto"]
+		old_auto_imp = current["auto_imp"]
 		y += round(30 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		ww = ddt.get_text_w(_("Auto-export"), 211)
-		old_auto = current["auto"]
-		old_auto_imp = current["auto_imp"]
 		if self.is_generator:
 			# ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
 			current["auto_imp"] = False
 		elif not original_playlist.playlist_file:
 			ddt.text((x + round( (ww + 30) * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a specific file)"), colours.grey(230), 11)
-			current["auto_imp"] = False
+			# current["auto_imp"] = False 
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 
 		
-		# lie to the user
-		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
+		# if anything changed this frame, the save text will display for the next 5 frames
 		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"] or \
 			old_rel != current["relative"] or old_text != self.directory_text_box.text or\
 				assert_fof_this_frame or assert_type_this_frame:
 			
 			self.save_text_frames = self.save_text_time
 
+		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
 		if self.save_text_frames > 0:
 			ww = ddt.get_text_w(_("Saving..."), 209)
-			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(15 * gui.scale))
+			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(30 * gui.scale))
 			ddt.text((x, y- round(30*gui.scale)), _("Saving..."), colours.grey(230), 11)
 			self.save_text_frames -= 1
 		
