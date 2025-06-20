@@ -8089,7 +8089,8 @@ class Tauon:
 			return 1
 		
 		if not direc or direc == "see playlist_file":
-			if not direc := self.get_containing_folder( self.pctl.multi_playlist[pl].playlist_file ):
+			direc = self.get_containing_folder( self.pctl.multi_playlist[pl].playlist_file )
+			if not direc:
 				direc = self.export_playlist_box.default["path"] # str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
