@@ -8068,6 +8068,17 @@ class Tauon:
 	#
 	#	 return [self.colours.menu_text, self.colours.menu_background, line]
 
+	def get_containing_folder(self, path: str) -> str:
+		# "/home/folder/filename.m3u"
+		temp_path = path[::-1]
+		# reversed "u3m.enamelif/redlof etc"
+		try:
+			position = temp_path.index("/")
+		except:
+			return None # TODO: fix for windows paths
+		else:
+			return temp_path[:position:-1] # will return without trailing slash
+
 	def export_m3u(self, pl: int, direc: str | None = None, relative: bool = False, show: bool = True) -> int | str:
 		"""Exports an m3u file from a Playlist dictionary in multi_playlist.
 		If the playlist contains a playlist_file field, it will export to that file;
@@ -8078,11 +8089,12 @@ class Tauon:
 			return 1
 		
 		if not direc or direc == "see playlist_file":
-			direc = str(self.user_directory / "playlists")
+			if not direc := self.get_containing_folder( self.pctl.multi_playlist[pl].playlist_file ):
+				direc = self.export_playlist_box.default["path"] # str(self.user_directory / "playlists")
 			if not os.path.exists(direc):
 				os.makedirs(direc)
 		
-		if self.pctl.multi_playlist[pl].playlist_file and self.pctl.multi_playlist[pl].playlist_file != "":
+		if self.pctl.multi_playlist[pl].playlist_file:
 			# if the playlist has a file attribute:
 			target = self.pctl.multi_playlist[pl].playlist_file
 			logging.info(f"Playlist will export to filepath {target}")
@@ -22331,7 +22343,7 @@ class ExportPlaylistBox:
 		self.is_generator = False
 		self.directory_text_box = TextBox2(tauon)
 		self.default = {
-			"path": str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists"),
+			"path": str(tauon.dirs.music_directory) if tauon.dirs.music_directory else str(tauon.dirs.user_directory / "playlists/"),
 			"type": "m3u",
 			"relative": False,
 			"auto": False,
@@ -22339,6 +22351,7 @@ class ExportPlaylistBox:
 			"full_path_mode": False,
 		}
 		self.has_it_run_yet = False
+		self.file_or_folder = "folder"
 
 	def activate(self, playlist: int) -> None:
 		"""runs when the playlist export menu is opened"""
@@ -22346,6 +22359,7 @@ class ExportPlaylistBox:
 		self.gui.box_over = True
 		self.id = self.pctl.pl_to_id(playlist)
 		self.has_it_run_yet = False
+		self.file_or_folder = "folder"
 
 		# Prune old enteries
 		ids = []
@@ -22399,12 +22413,12 @@ class ExportPlaylistBox:
 			except:
 				current["auto_imp"] = False
 
-			if original_playlist.playlist_file and original_playlist.playlist_file != "":
+			if original_playlist.playlist_file:
 				current["full_path_mode"] = True
+				self.file_or_folder = "file"
 			if current["type"] == "broken":
 				current["type"] = "m3u"
 		self.has_it_run_yet = True
-
 
 		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Import/Export Playlist"), colours.grey(230), 213)
 
@@ -22420,9 +22434,8 @@ class ExportPlaylistBox:
 		ddt.bordered_rect(rect1, colours.box_background, colours.box_text_border, round(1 * gui.scale))
 
 
-		# if full path mode is disabled or empty, display directory save path
-		# else display the full path 
-		if not current["full_path_mode"] or not original_playlist.playlist_file or original_playlist.playlist_file == "":
+		# load text box text from values saved at the end of each frame
+		if not current["full_path_mode"] or not original_playlist.playlist_file:
 			self.directory_text_box.text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
@@ -22430,6 +22443,29 @@ class ExportPlaylistBox:
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
 			width=rect1[2] - 8 * gui.scale, click=gui.level_2_click)
+
+		# first read from buttons: m3u, xspf, file/folder
+		# unterminated line will be interpreted as folder
+		# if they have changed this frame, update the text box as follows:
+		# if switched to folder, remove relevant extension and add trailing slash
+		# make sure to not remove unaccounted for extensions
+		# if switched to file, remove remove possible trailing slash and add extension
+
+		# path should always have relevant extension if it's interpreted as a file.
+		# if type switched and in file mode, remove extension and add new correct extension
+
+		# after button changes are parsed, read from the text
+		# this should always interpret every frame even if the buttons haven't been pressed in a while.
+		# if the line ends in a trailing slash, interpret as folder - do not touch type
+		# if line ends in relevant extension (xspf, m3u, m3u8), interpret as file and correct the type entry
+		# if line ends in neither, interpret as folder and do not touch type
+
+		# after all this processing, change current["full_path_mode"] depending on file or folder
+
+		# further functions will receive the same data as currently implemented: 
+		# current["full_path_mode"] will be tied directly to the file or folder box
+		# none of the data going out should be any different than before
+		# after button and text box processing, write to current["path"] and original_playlist.playlist_file
 
 		old_type = current["type"]
 		y += round(30 * gui.scale)
@@ -22439,54 +22475,77 @@ class ExportPlaylistBox:
 			current["type"] = "m3u"
 		assert_type_this_frame = old_type != current["type"] # did the user change the file type this frame?
 
-		extension = self.directory_text_box.text[-5:].lower()
-		if extension == ".xspf" or extension == ".m3u8" or extension.endswith(".m3u"):
-			current["full_path_mode"] = True
+		# button to toggle file/folder
+		ww = ddt.get_text_w(_("Path will interpret as "), 211) + 8
+		ddt.text((x + round(160 * gui.scale), y- round(1*gui.scale)), _("Path will interpret as "), colours.grey(230), 11)
+		old_fof = self.file_or_folder
+		if self.file_or_folder == "file":
+			if self.draw.button(_("file"), x + round( (160+ww) * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
+				self.file_or_folder = "folder"
+		else:
+			if self.draw.button(_("folder"), x + round( (160+ww) * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
+				self.file_or_folder = "file"
+		assert_fof_this_frame = old_fof != self.file_or_folder # did user swap from file to folder this frame?
 
-		old_fpm = current["full_path_mode"]
-		current["full_path_mode"] = self.pref_box.toggle_square(x + round(160 * gui.scale), y, current["full_path_mode"], _("Full path (not just directory)"), gui.level_2_click)
-		assert_fpm_this_frame = old_fpm != current["full_path_mode"] # did the user change fpm setting this frame?
-
-		ww = ddt.get_text_w(_("Full path (not just directory)"), 211) + 8
-		if self.draw.button(_("?"), x + round(405 * gui.scale), y - (3*gui.scale), press=gui.level_2_click):
-			self.show_message(
-					_("Determines where the playlist file is saved"),
-					_("In full path mode, the playlist will write to the EXACT FILE shown in the box. Otherwise,"),
-					_("the box will refer to its CONTAINING FOLDER, and the filename will be the playlist title."))
-
-		if current["full_path_mode"]:
-			if assert_type_this_frame:
-				# if the user clicks a format while in full path mode, remove extension from box text...
-				try:
-					period = self.directory_text_box.text[::-1].index(".")
-				except:
-					period = 100
-				if period <= 4:
-					self.directory_text_box.text = self.directory_text_box.text[:-(period+1)]
-				# ...and add the desired extension
-				self.directory_text_box.text += "." + current["type"]
-
-			else:
-				if extension != ".xspf" and extension != ".m3u8" and not extension.endswith(".m3u"):
-					current["type"] = "broken"
-					ddt.text((x + round(160 * gui.scale), y + round(16 * gui.scale)), _("Remember to include the extension!"), colours.grey(230), 11)
-				elif extension == ".xspf":
-					current["type"] = "xspf"
-				else:
-					current["type"] = "m3u"
-			original_playlist.playlist_file = self.directory_text_box.text
-		else:	
-			if assert_fpm_this_frame:
-				# if user unchecks full path, remove extension from box text
-				try:
-					period = self.directory_text_box.text[::-1].index(".")
-				except:
-					period = 100
-				if period <= 4:
-					self.directory_text_box.text = self.directory_text_box.text[:-(period+1)]
+		# parse button changes
+		if assert_fof_this_frame: # if user pressed file/folder button
+			if self.file_or_folder == "folder": # to change to folder:
+				# remove extension and replace with trailing slash
+				if self.directory_text_box.text.endswith(".xspf"):
+					self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
+				elif self.directory_text_box.text.endswith(".m3u8"):
+					self.directory_text_box.text = self.directory_text_box.text[:-5] + "/"
+				elif self.directory_text_box.text.endswith(".m3u"):
+					self.directory_text_box.text = self.directory_text_box.text[:-4] + "/"
+			else: # to change to file:
+				# remove possible trailing slash
+				if self.directory_text_box.text.endswith("/"):
+					self.directory_text_box.text = self.directory_text_box.text[:-1]
+				# and add relevant extension
+				self.directory_text_box.text = self.directory_text_box.text + "." + current["type"]
+		if assert_type_this_frame: # if user switched types
+			if self.file_or_folder == "folder": 
+				pass # don't do anything to the text
+			if self.file_or_folder == "file":
+				if current["type"] == "m3u":
+					if self.directory_text_box.text.endswith(".xspf"): # should be always but i don't wanna rebuild if i'm wrong
+						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".m3u"
+				else: 
+					if self.directory_text_box.text.endswith(".m3u8"):
+						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".xspf"
+					if self.directory_text_box.text.endswith(".m3u"):
+						self.directory_text_box.text = self.directory_text_box.text[:-4] + ".xspf"
 			
-			current["path"] = self.directory_text_box.text
+
+		# next up: parse contents of text box
+		# i don't think this steps on previous block's toes
+		# after button changes are parsed, read from the text
+		# this should always interpret every frame even if the buttons haven't been pressed in a while.
+		# if the line ends in a trailing slash, interpret as folder - do not touch type
+		# if line ends in relevant extension (xspf, m3u, m3u8), interpret as file and correct the type entry
+		# if line ends in neither, interpret as folder and do not touch type
+
+		# parse box text and convert to options if possible
+		# remember this runs every single frame
+		if self.directory_text_box.text.endswith("/"):
+			self.file_or_folder = "folder"
+		elif self.directory_text_box.text.endswith(".xspf"):
+			self.file_or_folder = "file"
+			current["type"] = "xspf"
+		elif self.directory_text_box.text.endswith(".m3u") or self.directory_text_box.text.endswith(".m3u8"):
+			self.file_or_folder = "file"
+			current["type"] = "m3u"
+		else: # if there's no trailing slash OR extension:
+			self.file_or_folder = "folder"
+		
+
+		# past this point the path is more or less set. we can save the path now
+		if self.file_or_folder == "file":
+			original_playlist.playlist_file = self.directory_text_box.text
+			current["path"] = self.default["path"]
+		else: 
 			original_playlist.playlist_file = ""
+			current["path"] = self.directory_text_box.text
 
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
@@ -22502,6 +22561,7 @@ class ExportPlaylistBox:
 					_("Enabled: tracks will be located from where the playlist is saved, e.g. \"../artist/album/track.mp3\"."))
 			# TODO: make sense of these for windows and mac
 
+		# auto export and auto import boxes
 		y += round(48 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		if self.is_generator:
