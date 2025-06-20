@@ -8107,6 +8107,7 @@ class Tauon:
 		except:
 			logging.error("export_m3u: something's gone seriously wrong.")
 			return 1
+		self.pctl.multi_playlist[pl].playlist_file = target
 
 		f = open(target, "w", encoding="utf-8")
 		f.write("#EXTM3U")
@@ -8162,6 +8163,8 @@ class Tauon:
 		except:
 			logging.error("export_xspf: something's gone seriously wrong.")
 			return 1
+
+		self.pctl.multi_playlist[pl].playlist_file = target
 
 		xspf_root = ET.Element("playlist", version="1", xmlns="http://xspf.org/ns/0/")
 		xspf_tracklist_tag = ET.SubElement(xspf_root, "trackList")
