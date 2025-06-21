@@ -22352,11 +22352,10 @@ class ExportPlaylistBox:
 			"auto": False,
 			"auto_imp": False,
 		}
-		self.save_text_time = 10 # how many frames to show save text
-		# temp settings - not 
+		self.save_timer = Timer()
+		self.save_time  = 0.3 # seconds to show the Saving... text
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
-		self.save_text_frames = 0
 		self.temp_auto_imp = False # store auto import if user toggles file/folder multiple times
 
 	def activate(self, playlist: int) -> None:
@@ -22366,7 +22365,6 @@ class ExportPlaylistBox:
 		self.id = self.pctl.pl_to_id(playlist)
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
-		self.save_text_frames = 0
 		self.temp_auto_imp = False
 
 		# Prune old enteries
@@ -22556,20 +22554,17 @@ class ExportPlaylistBox:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 
 		
-		# if anything changed this frame, the save text will display for the next x frames
+		# if anything changed this frame, the save text will display for the next x seconds
 		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"] or \
-			old_rel != current["relative"] or\
+			old_rel != current["relative"] or old_text != self.directory_text_box.text or \
 				assert_fof_this_frame or assert_type_this_frame:
-			self.save_text_frames = self.save_text_time
-		if old_text != self.directory_text_box.text: # lasts longer with this change idk why
-			self.save_text_frames = max(1, self.save_text_frames)
+			self.save_timer.set()
 
 		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
-		if self.save_text_frames > 0:
+		if self.save_timer.get() < self.save_time:
 			ww = ddt.get_text_w(_("Saving..."), 209)
 			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(30 * gui.scale))
 			ddt.text((x, y- round(30*gui.scale)), _("Saving..."), colours.grey(230), 11)
-			self.save_text_frames -= 1
 		
 		y += round(0 * gui.scale)
 		ww = ddt.get_text_w(_("Export now"), 211)
