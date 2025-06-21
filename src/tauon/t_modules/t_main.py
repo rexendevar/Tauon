@@ -22532,7 +22532,7 @@ class ExportPlaylistBox:
 		# elif not original_playlist.playlist_file:
 		#	ddt.text((x + round( (ww + 30) * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a specific file)"), colours.grey(230), 11)
 		#	# current["auto_imp"] = False 
-		elif self.file_or_folder = "folder":
+		elif self.file_or_folder == "folder":
 			pass
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round(130*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
