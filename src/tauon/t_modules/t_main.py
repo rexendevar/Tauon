@@ -22352,8 +22352,6 @@ class ExportPlaylistBox:
 			"auto": False,
 			"auto_imp": False,
 		}
-		self.save_timer = Timer()
-		self.save_time  = 0.3 # seconds to show the Saving... text
 		self.has_it_run_yet = False
 		self.file_or_folder = "folder"
 		self.temp_auto_imp = False # store auto import if user toggles file/folder multiple times
@@ -22441,7 +22439,6 @@ class ExportPlaylistBox:
 			self.directory_text_box.text = current["path"]
 		else:
 			self.directory_text_box.text = original_playlist.playlist_file
-		old_text = self.directory_text_box.text
 
 		self.directory_text_box.draw(
 			x + round(4 * gui.scale), y, colours.box_input_text, True,
@@ -22539,8 +22536,6 @@ class ExportPlaylistBox:
 			# TODO: make sense of these for windows and mac
 
 		# auto export and auto import boxes
-		old_auto = current["auto"]
-		old_auto_imp = current["auto_imp"]
 		y += round(30 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		ww = ddt.get_text_w(_("Auto-export"), 211)
@@ -22552,19 +22547,6 @@ class ExportPlaylistBox:
 			# current["auto_imp"] = False 
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round( (ww + 30) *gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
-
-		
-		# if anything changed this frame, the save text will display for the next x seconds
-		if old_auto != current["auto"] or old_auto_imp != current["auto_imp"] or \
-			old_rel != current["relative"] or old_text != self.directory_text_box.text or \
-				assert_fof_this_frame or assert_type_this_frame:
-			self.save_timer.set()
-
-		# settings are saved every frame but it'll be more concrete if it looks like it takes some time
-		if self.save_timer.get() < self.save_time:
-			ww = ddt.get_text_w(_("Saving..."), 209)
-			x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(30 * gui.scale))
-			ddt.text((x, y- round(30*gui.scale)), _("Saving..."), colours.grey(230), 11)
 		
 		y += round(0 * gui.scale)
 		ww = ddt.get_text_w(_("Export now"), 211)
