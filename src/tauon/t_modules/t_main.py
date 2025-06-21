@@ -22399,6 +22399,13 @@ class ExportPlaylistBox:
 				current["auto_imp"]
 			except:
 				current["auto_imp"] = False
+			self.temp_auto_imp = current["auto_imp"]
+
+			if original_playlist.playlist_file:
+				self.file_or_folder = "file"
+				self.directory_text_box.text = original_playlist.playlist_file
+			else:
+				self.directory_text_box.text = current["path"] + "/" + original_playlist.title + "." + current["type"]
 		self.has_it_run_yet = True
 
 		ddt.text((x + 10 * gui.scale, y + 8 * gui.scale), _("Import/Export Playlist"), colours.grey(230), 213)
@@ -22406,7 +22413,10 @@ class ExportPlaylistBox:
 		x += round(15 * gui.scale)
 		y += round(25 * gui.scale)
 
-		ecks, why = x, y
+		if self.file_or_folder == "folder":
+			ddt.text((x, y + 8 * gui.scale), _("Save folder"), colours.grey(230), 11)
+		else:
+			ddt.text((x, y + 8 * gui.scale), _("Save file"), colours.grey(230), 11)
 		y += round(30 * gui.scale)
 
 		rect1 = (x, y, round(450 * gui.scale), round(16 * gui.scale))
@@ -22431,27 +22441,75 @@ class ExportPlaylistBox:
 			current["type"] = "xspf"
 		if self.pref_box.toggle_square(x + round(80 * gui.scale), y, current["type"] == "m3u", "M3U", gui.level_2_click):
 			current["type"] = "m3u"
-		type_changed = old_type != current["type"]
+		assert_type_this_frame = old_type != current["type"] # did the user change the file type this frame?
 
-		cur_path = self.directory_text_box.text
-		
-		if cur_path.endswith("/"):
-			ddt.text((ecks, why + 8 * gui.scale), _("Save folder"), colours.grey(230), 11)
-			current["path"] = cur_path
+		# align file/folder button to right side of text box
+		# btn_ww = max( ddt.get_text_w(_("file"), 211), ddt.get_text_w(_("folder"), 211))
+		# ecks = x
+		# why = y
+		# x += (455 - btn_ww) * gui.scale
+		# ww = ddt.get_text_w(_("Path will interpret as "), 211)
+		# ddt.text((x - round(ww * gui.scale), y), _("Path will interpret as "), colours.grey(230), 15)
+		# button to toggle file/folder
+		# old_fof = self.file_or_folder
+		#if self.file_or_folder == "file":
+		#	if self.draw.button(_("file"), x, y - (3*gui.scale), press=gui.level_2_click):
+		#		self.file_or_folder = "folder"
+		# else:
+		#	if self.draw.button(_("folder"), x, y - (3*gui.scale), press=gui.level_2_click):
+		#		self.file_or_folder = "file"
+		# assert_fof_this_frame = old_fof != self.file_or_folder # did user swap from file to folder this frame?
+		# x = ecks
+		# y = why
+
+		# parse button changes
+		# if assert_fof_this_frame: # if user pressed file/folder button
+		#	if self.file_or_folder == "folder": # to change to folder:
+		#		# remove filename and replace with trailing slash
+		#		self.directory_text_box.text = self.tauon.get_containing_folder ( self.directory_text_box.text ) + "/"
+		#		self.temp_auto_imp = current["auto_imp"]
+		#	else: # to change to file:
+		#		# remove possible trailing slash
+		#		if self.directory_text_box.text.endswith("/"):
+		#			self.directory_text_box.text = self.directory_text_box.text[:-1]
+		#		# and then put it back plus titkle and format
+		#		self.directory_text_box.text = self.directory_text_box.text + "/" + original_playlist.title + "." + current["type"]
+		#		current["auto_imp"] = self.temp_auto_imp
+		if assert_type_this_frame: # if user switched types
+			if self.file_or_folder == "file":
+				if current["type"] == "m3u":
+					if self.directory_text_box.text.endswith(".xspf"): # should be always but i don't wanna rebuild if i'm wrong
+						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".m3u"
+				else: 
+					if self.directory_text_box.text.endswith(".m3u8"):
+						self.directory_text_box.text = self.directory_text_box.text[:-5] + ".xspf"
+					if self.directory_text_box.text.endswith(".m3u"):
+						self.directory_text_box.text = self.directory_text_box.text[:-4] + ".xspf"
+			
+		# parse box text and convert to options if possible
+		# remember this runs every single frame
+		if self.directory_text_box.text.endswith("/"):
+			self.file_or_folder = "folder"
+			current["auto_imp"] = False
+		elif self.directory_text_box.text.endswith(".xspf"):
+			self.file_or_folder = "file"
+			current["type"] = "xspf"
+		elif self.directory_text_box.text.endswith(".m3u") or self.directory_text_box.text.endswith(".m3u8"):
+			self.file_or_folder = "file"
+			current["type"] = "m3u"
+		else: # if there's no trailing slash OR extension:
+			self.file_or_folder = "file"
+			# current["auto_imp"] = False
+			# TODO: on linux you can make a folder called "folder.jpg" for example. same on other OS?
+
+		# save the path
+		if self.file_or_folder == "file":
+			original_playlist.playlist_file = self.directory_text_box.text
+			current["path"] = self.default["path"]
+		else: 
 			original_playlist.playlist_file = ""
-		else:
-			ddt.text((ecks, why + 8 * gui.scale), _("Save file"), colours.grey(230), 11)
-			if type_changed:
-				self.directory_box_text.text = self.tauon.remove_extension(cur_path) + "." + current["type"]
-			if cur_path.endswith(".xspf"):
-				current["type"] = "xspf"
-				original_playlist.playlist_file = self.directory_text_box.text
-			elif cur_path.endswith(".m3u") or cur_path.endswith(".m3u8"):
-				current["type"] = "m3u"
-				original_playlist.playlist_file = self.directory_text_box.text
-			else:
-				current["path"] = self.tauon.get_containing_folder(cur_path)
-				original_playlist.playlist_file = cur_path
+			current["path"] = self.directory_text_box.text
+
 
 		# self.pref_box.toggle_square(x + round(160 * gui.scale), y, False, "PLS", gui.level_2_click)
 		y += round(48 * gui.scale)
@@ -22469,34 +22527,27 @@ class ExportPlaylistBox:
 		y += round(48 * gui.scale)
 		current["auto"] = self.pref_box.toggle_square(x, y, current["auto"], _("Auto-export"), gui.level_2_click)
 		if self.is_generator:
+			# ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import disabled for generator playlists)"), colours.grey(230), 11)
+			current["auto_imp"] = False
+		# elif not original_playlist.playlist_file:
+		#	ddt.text((x + round( (ww + 30) * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a specific file)"), colours.grey(230), 11)
+		#	# current["auto_imp"] = False 
+		elif self.file_or_folder = "folder":
 			pass
-		#elif not current["full_path_mode"] or current["type"] == "broken":
-		#	ddt.text((x + round(130 * gui.scale), y- round(1*gui.scale)), _("(Auto-import requires a valid full path)"), colours.grey(230), 11)
-		#	current["auto_imp"] = False
 		else:
 			current["auto_imp"] = self.pref_box.toggle_square(x + round(130*gui.scale), y, current["auto_imp"], _("Auto-import"), gui.level_2_click)
 			
 
 		y += round(0 * gui.scale)
-		ww = ddt.get_text_w(_("Export now"), 211)
+		ww = ddt.get_text_w(_("Save/export"), 211)
 		x = ((int(self.window_size[0] / 2) - int(w / 2)) + w) - (ww + round(40 * gui.scale))
 
 		self.prefs.playlist_exports[self.id] = current
  
 		# TODO: add some indication that settings are saved every frame, or perhaps a save button that just closes the box 
 
-		if self.draw.button(_("Export now"), x, y - (2*gui.scale), press=gui.level_2_click):
-			if current["type"] != "broken":
-				if cur_path.endswith("/"):
-					original_playlist.playlist_file = cur_path + original_playlist.title + "." + current["type"]
-				if not cur_path.endswith(".m3u8"):
-					original_playlist.playlist_file = self.tauon.remove_extension(cur_path) + "." + current["type"]
-				self.run_export(current, self.id, warnings=True)
-			else:
-				self.show_message(
-					_("Export error"),
-					_("Correct your filepath or select a format, then try again."),
-					mode = "warning")
+		if self.draw.button(_("Save/export"), x, y - (2*gui.scale), press=gui.level_2_click):
+			self.run_export(current, self.id, warnings=True)
 
 	def run_export(self, current, id, warnings: bool = True) -> None:
 		logging.info("Export playlist")
