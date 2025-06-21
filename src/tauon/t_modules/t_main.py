@@ -244,6 +244,16 @@ except Exception:
 	logging.exception("Unknown error trying to import natsort, playlists may not sort as intended!")
 
 try:
+	from tauon.t_modules.t_chrome import Chrome
+except ModuleNotFoundError as e:
+	logging.debug(f"pychromecast import error: {e}")
+	logging.warning("Unable to import Chrome(pychromecast), chromecast support will be disabled.")
+except Exception:
+	logging.exception("Unknown error trying to import Chrome(pychromecast), chromecast support will be disabled.")
+finally:
+	logging.debug("Found Chrome(pychromecast) for chromecast support")
+
+try:
 	# pyLast needs to be imported AFTER setup_tls() else pyinstaller breaks - we reimport it later
 	import pylast
 except Exception:
@@ -387,7 +397,7 @@ class DConsole:
 	"""GUI console with logs"""
 
 	def __init__(self) -> None:
-		self.show:     bool      = False
+		self.show: bool = False
 
 	def toggle(self) -> None:
 		"""Toggle the GUI console with logs on and off"""
@@ -2634,16 +2644,16 @@ class PlayerCtl:
 	def deduct_shuffle(self, track_id: int) -> None:
 		if self.multi_playlist and self.random_mode:
 			pl = self.multi_playlist[self.active_playlist_playing]
-			id = pl.uuid_int
+			pl_id = pl.uuid_int
 
-			if id not in self.shuffle_pools:
+			if pl_id not in self.shuffle_pools:
 				self.update_shuffle_pool(pl.uuid_int)
 
-			pool = self.shuffle_pools[id]
+			pool = self.shuffle_pools[pl_id]
 			if not pool:
-				del self.shuffle_pools[id]
+				del self.shuffle_pools[pl_id]
 				self.update_shuffle_pool(pl.uuid_int)
-			pool = self.shuffle_pools[id]
+			pool = self.shuffle_pools[pl_id]
 
 			if track_id in pool:
 				pool.remove(track_id)
@@ -8307,10 +8317,10 @@ class Tauon:
 			if track.file_ext == "M4A":
 				m4a_bitrates[track.bitrate] = m4a_bitrates.get(track.bitrate, 0) + 1
 
-			type = track.file_ext
-			if type == "OGA":
-				type = "OGG"
-			seen_types[type] = seen_types.get(type, 0) + 1
+			file_type = track.file_ext
+			if file_type == "OGA":
+				file_type = "OGG"
+			seen_types[file_type] = seen_types.get(file_type, 0) + 1
 
 			if track.fullpath and not track.is_network and track.fullpath not in seen_files:
 				size = track.size
@@ -8336,15 +8346,15 @@ class Tauon:
 		line += _("Track types:") + "\n"
 		if tracks_in_playlist:
 			types = sorted(seen_types, key=seen_types.get, reverse=True)
-			for type in types:
-				perc = round((seen_types.get(type) / tracks_in_playlist) * 100, 1)
+			for track_type in types:
+				perc = round((seen_types.get(track_type) / tracks_in_playlist) * 100, 1)
 				if perc < 0.1:
 					perc = "<0.1"
-				if type == "SPOT":
-					type = "SPOTIFY"
-				if type == "SUB":
-					type = "AIRSONIC"
-				line += f"{type} ({perc}%); "
+				if track_type == "SPOT":
+					track_type = "SPOTIFY"
+				if track_type == "SUB":
+					track_type = "AIRSONIC"
+				line += f"{track_type} ({perc}%); "
 		line = line.rstrip("; ")
 		line += "\n\n"
 
@@ -10925,20 +10935,18 @@ class Tauon:
 		xport.write("Artist;Title;Album;Album artist;Track number;Type;Duration;Release date;Genre;Playtime;File path")
 
 		for index, track in self.pctl.master_library.items():
-
 			xport.write("\n")
-
 			xport.write(csv_string(track.artist) + ",")
 			xport.write(csv_string(track.title) + ",")
 			xport.write(csv_string(track.album) + ",")
 			xport.write(csv_string(track.album_artist) + ",")
 			xport.write(csv_string(track.track_number) + ",")
-			type = "File"
+			track_type = "File"
 			if track.is_network:
-				type = "Network"
+				track_type = "Network"
 			elif track.is_cue:
-				type = "CUE File"
-			xport.write(type + ",")
+				track_type = "CUE File"
+			xport.write(track_type + ",")
 			xport.write(str(track.length) + ",")
 			xport.write(csv_string(track.date) + ",")
 			xport.write(csv_string(track.genre) + ",")
@@ -16659,7 +16667,7 @@ class Tauon:
 			prefs.tray_theme,
 			prefs.row_title_format,
 			prefs.row_title_genre,
-			prefs.row_title_separator_type,
+			prefs.row_title_separator_type,  # No longer used
 			prefs.replay_preamp,  # 181
 			prefs.gallery_combine_disc,
 			pctl.active_playlist_playing,  # 183
@@ -16791,7 +16799,6 @@ class Tauon:
 				self.gui.cursor_want = 3
 			if click:
 				webbrowser.open(link_pa[2], new=2, autoraise=True)
-				self.gui.track_box = True
 
 	def trunc_line(self, line: str, font: str, px: int, dots: bool = True) -> str:
 		"""This old function is slow and should be avoided"""
@@ -24914,7 +24921,7 @@ class Over:
 				(x + 0 * gui.scale, y),
 				_("They encourage you to contribute at {link}").format(link="https://fanart.tv"),
 				colours.box_text_label, 11)
-			self.tauon.link_activate(x, y, link_pa2)
+			self.tauon.link_activate(x, y, link_pa2, click=self.click)
 
 			y += 35 * gui.scale
 			prefs.enable_fanart_cover = self.toggle_square(
@@ -26038,19 +26045,24 @@ class Over:
 		x = x0 + self.item_x_offset
 		y = y0 + 17 * gui.scale
 
-		self.toggle_square(x, y, self.tauon.rating_toggle, _("Track ratings"))
-		y += round(25 * gui.scale)
-		self.toggle_square(x, y, self.tauon.album_rating_toggle, _("Album ratings"))
-		y += round(35 * gui.scale)
 
+
+
+		#y += round(35 * gui.scale)
 		self.toggle_square(x, y, self.tauon.heart_toggle, "     ")
 		gui.heart_row_icon.render(x + round(23 * gui.scale), y + round(2 * gui.scale), colours.box_text)
 		rect = (x, y + round(2 * gui.scale), 40 * gui.scale, 15 * gui.scale)
 		self.fields.add(rect)
 		if self.coll(rect):
 			self.tauon.ex_tool_tip(x + round(45 * gui.scale), y - 20 * gui.scale, 0, _("Show track loves"), 12)
+		y += round(25 * gui.scale)
 
-		x += (55 * gui.scale)
+		self.toggle_square(x, y, self.tauon.rating_toggle, _("Track ratings"))
+		y += round(25 * gui.scale)
+		self.toggle_square(x, y, self.tauon.album_rating_toggle, _("Album ratings"))
+		y += round(35 * gui.scale)
+
+
 		self.toggle_square(x, y, self.tauon.star_toggle, "     ")
 		gui.star_row_icon.render(x + round(22 * gui.scale), y + round(0 * gui.scale), colours.box_text)
 		rect = (x, y + round(2 * gui.scale), 40 * gui.scale, 15 * gui.scale)
@@ -26069,6 +26081,7 @@ class Over:
 			self.tauon.ex_tool_tip(x + round(35 * gui.scale), y - 20 * gui.scale, 0, _("Represent playcount as lines"), 12)
 
 		x = x0 + self.item_x_offset
+		#x += (55 * gui.scale)
 
 		# y += round(25 * gui.scale)
 
@@ -26100,12 +26113,12 @@ class Over:
 		self.toggle_square(x, y, self.tauon.toggle_append_total_time, _("Show album duration"))
 		y += round(35 * gui.scale)
 
-		if self.toggle_square(x, y, prefs.row_title_separator_type == 0, " - "):
-			prefs.row_title_separator_type = 0
-		if self.toggle_square(x + round(55 * gui.scale), y,  prefs.row_title_separator_type == 1, " ‒ "):
-			prefs.row_title_separator_type = 1
-		if self.toggle_square(x + round(110 * gui.scale), y,  prefs.row_title_separator_type == 2, " ⦁ "):
-			prefs.row_title_separator_type = 2
+		# if self.toggle_square(x, y, prefs.row_title_separator_type == 0, " - "):
+		# 	prefs.row_title_separator_type = 0
+		# if self.toggle_square(x + round(55 * gui.scale), y,  prefs.row_title_separator_type == 1, " ‒ "):
+		# 	prefs.row_title_separator_type = 1
+		# if self.toggle_square(x + round(110 * gui.scale), y,  prefs.row_title_separator_type == 2, " ⦁ "):
+		# 	prefs.row_title_separator_type = 2
 		x = x0 + 330 * gui.scale
 		y = y0 + 25 * gui.scale
 
@@ -29820,11 +29833,12 @@ class StandardPlaylist:
 
 			if type == 1:
 				# Is type ALBUM TITLE
-				separator = " - "
-				if prefs.row_title_separator_type == 1:
-					separator = " ‒ "
-				if prefs.row_title_separator_type == 2:
-					separator = " ⦁ "
+				# separator = " - "
+				# if prefs.row_title_separator_type == 1:
+				# 	separator = " ‒ "
+				# if prefs.row_title_separator_type == 2:
+				# 	separator = " ⦁ "
+				separator = " ‒ "
 
 				date = ""
 				duration = ""
@@ -40558,26 +40572,9 @@ def main(holder: Holder) -> None:
 	if prefs.backend != 4:
 		prefs.backend = 4
 
-	chrome = None
-
-	try:
-		from tauon.t_modules.t_chrome import Chrome
-		chrome = Chrome(tauon)
-	except ModuleNotFoundError as e:
-		logging.debug(f"pychromecast import error: {e}")
-		logging.warning("Unable to import Chrome(pychromecast), chromecast support will be disabled.")
-	except Exception:
-		logging.exception("Unknown error trying to import Chrome(pychromecast), chromecast support will be disabled.")
-	finally:
-		logging.debug("Found Chrome(pychromecast) for chromecast support")
-
-	tauon.chrome = chrome
-
-	plex     = tauon.plex
-	jellyfin = tauon.jellyfin
-	subsonic = tauon.subsonic
-	koel     = tauon.koel
-	tau      = tauon.tau
+	chrome_loaded = is_module_loaded("tauon.t_modules.t_chrome", "Chrome")
+	if chrome_loaded:
+		tauon.chrome = Chrome(tauon)
 
 	tray = STray(tauon)
 
@@ -42293,7 +42290,7 @@ def main(holder: Holder) -> None:
 				elif event.type == sdl3.SDL_EVENT_WINDOW_MINIMIZED:
 					gui.lowered = True
 					# if prefs.min_to_tray:
-					#     tray.down()
+					# 	tray.down()
 					# tauon.thread_manager.sleep()
 
 				elif event.type == sdl3.SDL_EVENT_WINDOW_RESTORED:
@@ -43882,7 +43879,7 @@ def main(holder: Holder) -> None:
 										else:
 											a = int(255 - 255 * (t - 0.5))
 
-										c = [c[1], c[2], c[0], a]
+										c = ColourRGBA(c.g, c.b, c.r, a)
 										ddt.rect_a((x - 5, y - 5), (tauon.album_mode_art_size + 10, tauon.album_mode_art_size + 10), c)  # [150, 80, 222, 255]
 
 										gui.update += 1
@@ -45709,7 +45706,7 @@ def main(holder: Holder) -> None:
 						gui.quick_search_mode = True
 					if tauon.search_clear_timer.get() > 3:
 						search_over.search_text.text = ""
-					input_text = ""
+					inp.input_text = ""
 				elif (keymaps.test("quick-find") or (
 						inp.key_esc_press and len(gui.editline) == 0)) or (inp.mouse_click and gui.quick_search_mode is True):
 					gui.quick_search_mode = False
