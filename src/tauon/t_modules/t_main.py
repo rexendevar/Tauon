@@ -18229,6 +18229,9 @@ class Tauon:
 			return None
 
 		title = self.gen_unique_pl_title(_("New Playlist"))
+		# playlist folders will be stored in the playlist title, something like "folder name/playlist name"
+		# except with a character the user can't type. maybe a back tick
+		# the title won't be displayed that way, only stored
 
 		self.top_panel.prime_side = 1
 		self.top_panel.prime_tab = len(self.pctl.multi_playlist)
@@ -32270,6 +32273,14 @@ class RenamePlaylistBox:
 					self.pctl.multi_playlist[self.playlist_index].title = self.rename_text_area.text
 			self.inp.key_return_press = False
 
+
+
+
+
+
+
+
+
 class PlaylistBox:
 
 	def recalc(self) -> None:
@@ -32313,6 +32324,8 @@ class PlaylistBox:
 
 		self.text_offset = 2 * self.gui.scale
 		self.recalc()
+
+		self.last_folder_is_collapsed = False
 
 	def draw(self, x: int, y: int, w: int, h: int) -> None:
 		tauon = self.tauon
@@ -32380,6 +32393,9 @@ class PlaylistBox:
 		# 		elif pctl.active_playlist_viewing + 1 > self.scroll_on + max_tabs:
 		# 			self.scroll_on = (pctl.active_playlist_viewing - max_tabs) + 1
 
+
+
+
 		# Process inputs
 		delete_pl = None
 		tab_on = 0
@@ -32393,6 +32409,26 @@ class PlaylistBox:
 
 			# if not pl.hidden and i in tabs_on_top:
 			# 	continue
+
+			name = pl.title
+			hidden = pl.hidden
+			folder = False
+			inside_folder = False
+
+			if name.endswith("`"):
+				folder = True
+				name = name.rstrip("`") # planning to only allow one level of folders but i could change that in the future
+			elif "`" in name:
+				inside_folder = True
+
+			if hidden and folder:
+				self.last_folder_is_collapsed = True
+				collapsed = False # u can't hide folders but you can collapse them
+			elif inside_folder and self.last_folder_is_collapsed:
+				collapsed = True
+			else:
+				self.last_folder_is_collapsed = False
+				collapsed = False
 
 			tab_on += 1
 
@@ -32474,27 +32510,7 @@ class PlaylistBox:
 					(tab_start + 5 * gui.scale, yy + 3 * gui.scale, 25 * gui.scale, 26 * gui.scale)):
 				pl.hidden ^= True
 
-			yy += self.tab_h + self.gap
-
-		# Draw tabs
-		# delete_pl = None
-		tab_on = 0
-		yy = y + 5 * gui.scale
-		for i, pl in enumerate(pctl.multi_playlist):
-
-			# if yy + self.tab_h > y + h:
-			#     break
-			if tab_on >= max_tabs:
-				break
-			if i < self.scroll_on:
-				continue
-
-			tab_on += 1
-
-			name = pl.title
-			hidden = pl.hidden
-
-			# Background is invisible by default (for hightlighting if selected)
+						# Background is invisible by default (for hightlighting if selected)
 			bg = ColourRGBA(0, 0, 0, 0)
 			if self.prefs.transparent_mode:
 				bg = rgb_add_hls(self.colours.playlist_box_background, 0, 0.09, 0)
@@ -32515,7 +32531,7 @@ class PlaylistBox:
 			# Highlight target playlist when tragging tracks over
 			if self.coll(
 				(tab_start + 50 * gui.scale, yy - 1, tab_width - 50 * gui.scale, (self.tab_h + 1))) and self.inp.quick_drag and not (
-				pctl.gen_codes.get(pctl.pl_to_id(i)) and "self" not in pctl.gen_codes[pctl.pl_to_id(i)]):
+				pctl.gen_codes.get(pctl.pl_to_id(i)) and "self" not in pctl.gen_codes[pctl.pl_to_id(i)]) and not folder:
 				# bg = [255, 255, 255, 15]
 				bg = rgb_add_hls(self.colours.playlist_box_background, 0, 0.04, 0)
 				if light_mode:
@@ -32549,6 +32565,7 @@ class PlaylistBox:
 			text_max_w = tab_width - text_start - 15 * gui.scale
 			# if indicator_run_x:
 			#     text_max_w = tab_width - (indicator_run_x + text_start + 17 * gui.scale + slide)
+
 			self.ddt.text(
 				(tab_start + text_start, yy + self.text_offset), name, tab_title_colour, 211, max_w=text_max_w, bg=real_bg)
 
@@ -32611,6 +32628,140 @@ class PlaylistBox:
 								ColourRGBA(244, 212, 66, int(255 * self.adds[k][2].get() / 0.3) * -1))
 
 			yy += self.tab_h + self.gap
+
+		# Draw tabs
+		# delete_pl = None
+		tab_on = 0
+		yy = y + 5 * gui.scale
+		for i, pl in enumerate(pctl.multi_playlist):
+
+			# if yy + self.tab_h > y + h:
+			#     break
+			if tab_on >= max_tabs:
+				break
+			if i < self.scroll_on:
+				continue
+
+			tab_on += 1
+
+			# 			# Background is invisible by default (for hightlighting if selected)
+			# bg = ColourRGBA(0, 0, 0, 0)
+			# if self.prefs.transparent_mode:
+			# 	bg = rgb_add_hls(self.colours.playlist_box_background, 0, 0.09, 0)
+			# 	bg = ColourRGBA(bg.r, bg.g, bg.b, 255)
+
+			# # Highlight if playlist selected (viewing)
+			# if i == pctl.active_playlist_viewing or (tauon.tab_menu.active and tauon.tab_menu.reference == i):
+			# 	# bg = [255, 255, 255, 25]
+
+			# 	# Adjust highlight for different background brightnesses
+			# 	bg = rgb_add_hls(self.colours.playlist_box_background, 0, 0.06, 0)
+			# 	if light_mode:
+			# 		bg = ColourRGBA(0, 0, 0, 25)
+			# 	if self.prefs.transparent_mode:
+			# 		bg = rgb_add_hls(self.colours.playlist_box_background, 0, 0.03, 0)
+			# 		bg = ColourRGBA(bg.r, bg.g, bg.b, 255)
+
+			# # Highlight target playlist when tragging tracks over
+			# if self.coll(
+			# 	(tab_start + 50 * gui.scale, yy - 1, tab_width - 50 * gui.scale, (self.tab_h + 1))) and self.inp.quick_drag and not (
+			# 	pctl.gen_codes.get(pctl.pl_to_id(i)) and "self" not in pctl.gen_codes[pctl.pl_to_id(i)]) and not folder:
+			# 	# bg = [255, 255, 255, 15]
+			# 	bg = rgb_add_hls(self.colours.playlist_box_background, 0, 0.04, 0)
+			# 	if light_mode:
+			# 		bg = ColourRGBA(0, 0, 0, 16)
+
+			# # Get actual bg from blend for text bg
+			# real_bg = alpha_blend(bg, self.colours.playlist_box_background)
+
+			# # Draw highlight
+			# self.ddt.rect((tab_start, yy - round(1 * gui.scale), tab_width, self.tab_h), bg)
+
+			# # Draw title text
+			# text_start = 10 * gui.scale
+			# if draw_pin_indicator:
+			# 	# text_start = 40 * gui.scale
+			# 	text_start = 32 * gui.scale
+
+			# if pctl.gen_codes.get(pctl.pl_to_id(i), "")[:3] in ["sal", "slt", "spl"]:
+			# 	text_start = 28 * gui.scale
+			# 	self.spot_icon.render(tab_start + round(7 * gui.scale), yy + round(3 * gui.scale), alpha_mod(tab_title_colour, 170))
+
+			# if not pl.hidden and self.prefs.tabs_on_top:
+			# 	cl = ColourRGBA(255, 255, 255, 25)
+
+			# 	if light_mode:
+			# 		cl = ColourRGBA(0, 0, 0, 40)
+
+			# 	xx = tab_start + tab_width - self.lock_icon.w
+			# 	self.lock_icon.render(xx, yy, cl)
+
+			# text_max_w = tab_width - text_start - 15 * gui.scale
+			# # if indicator_run_x:
+			# #     text_max_w = tab_width - (indicator_run_x + text_start + 17 * gui.scale + slide)
+
+			# self.ddt.text(
+			# 	(tab_start + text_start, yy + self.text_offset), name, tab_title_colour, 211, max_w=text_max_w, bg=real_bg)
+
+			# # Is mouse collided with tab?
+			# hit = self.coll((tab_start + 50 * gui.scale, yy - 1, tab_width - 50 * gui.scale, (self.tab_h + 1)))
+
+			# # if not self.prefs.tabs_on_top:
+			# if i == pctl.active_playlist_playing:
+			# 	indicator_colour = self.colours.title_playing
+			# 	if self.colours.lm:
+			# 		indicator_colour = self.colours.seek_bar_fill
+
+			# 	ddt.rect((tab_start + 0 - 2 * gui.scale, yy - round(1 * gui.scale), indicate_w, self.tab_h), indicator_colour)
+
+			# # # If mouse over
+			# if hit:
+			# 	# Draw indicator for dragging tracks
+			# 	if (self.inp.quick_drag or gui.ext_drop_mode) and self.tauon.pl_is_mut(i):
+			# 		ddt.rect((tab_start + tab_width - self.indicate_w, yy, self.indicate_w, self.tab_h), ColourRGBA(80, 200, 180, 255))
+
+			# 	# Draw indicators for moving tab
+			# 	if self.drag and i != self.drag_on and not point_proximity_test(
+			# 		gui.drag_source_position, self.inp.mouse_position, 10 * gui.scale):
+			# 		if self.inp.key_shift_down:
+			# 			ddt.rect(
+			# 				(tab_start + tab_width - 4 * gui.scale, yy, self.indicate_w, self.tab_h),
+			# 				ColourRGBA(80, 160, 200, 255))
+			# 		elif i < self.drag_on:
+			# 			ddt.rect((tab_start, yy - self.indicate_w, tab_width, self.indicate_w), ColourRGBA(80, 160, 200, 255))
+			# 		else:
+			# 			ddt.rect((tab_start, yy + (self.tab_h - self.indicate_w), tab_width, self.indicate_w), ColourRGBA(80, 160, 200, 255))
+
+			# elif self.inp.quick_drag and not point_proximity_test(gui.drag_source_position, self.inp.mouse_position, 15 * gui.scale):
+			# 	for item in gui.shift_selection:
+			# 		if len(pctl.default_playlist) > item and pctl.default_playlist[item] in pl.playlist_ids:
+			# 			ddt.rect((tab_start + tab_width - self.indicate_w, yy, self.indicate_w, self.tab_h), ColourRGBA(190, 170, 20, 255))
+			# 			break
+			# # Drag red line highlight if playlist is generator playlist
+			# if self.inp.quick_drag and not point_proximity_test(gui.drag_source_position, self.inp.mouse_position, 15 * gui.scale):
+			# 	if not self.tauon.pl_is_mut(i):
+			# 		ddt.rect((tab_start + tab_width - self.indicate_w, yy, self.indicate_w, self.tab_h), ColourRGBA(200, 70, 50, 255))
+
+			# # Draw effect of adding tracks to playlist
+			# if len(self.adds) > 0:
+			# 	for k in reversed(range(len(self.adds))):
+			# 		if pctl.multi_playlist[i].uuid_int == self.adds[k][0]:
+			# 			if self.adds[k][2].get() > 0.3:
+			# 				del self.adds[k]
+			# 			else:
+			# 				ay = yy + 4 * gui.scale
+			# 				ay -= 6 * gui.scale * self.adds[k][2].get() / 0.3
+
+			# 				ddt.text(
+			# 					(tab_start + tab_width - 10 * gui.scale, round(ay), 1),
+			# 					"+" + str(self.adds[k][1]), self.colours.pluse_colour, 212, bg=real_bg)
+			# 				gui.update += 1
+
+			# 				ddt.rect(
+			# 					(tab_start + tab_width, yy, self.indicate_w, self.tab_h - self.indicate_w),
+			# 					ColourRGBA(244, 212, 66, int(255 * self.adds[k][2].get() / 0.3) * -1))
+
+			# yy += self.tab_h + self.gap
 
 		if delete_pl is not None:
 			# delete_playlist(delete_pl)
