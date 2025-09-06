@@ -32295,9 +32295,9 @@ class RenamePlaylistBox:
 
 @dataclass
 class PlaylistGroupTag:
-	tag_name:             str = "New Tag"
-	playlist_uuids: list[int] = []
-	collapsed:           bool = False
+	tag_name:             str
+	playlist_uuids: list[int]
+	collapsed:           bool
 	uuid_int:             int
 
 class PlaylistBox:
