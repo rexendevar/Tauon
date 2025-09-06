@@ -14217,6 +14217,20 @@ class Tauon:
 				self.albums.append([index, 0])
 				folder = self.pctl.master_library[index].parent_folder_name
 
+	def pl_group_tag_gen(self,
+		tag_name:             str = "Default",
+		playlist_uuids: list[int] = [],
+		collapsed:           bool = False,
+
+		) -> PlaylistGroupTag:
+		return PlaylistGroupTag(
+			tag_name=tag_name,
+			uuid_int=uid_gen(),
+			playlist_uuids=playlist_uuids,
+			collapsed=collapsed
+
+		)
+
 	def pl_gen(self,
 		title:        str = "Default",
 		playing:      int = 0,
@@ -32279,7 +32293,12 @@ class RenamePlaylistBox:
 
 
 
-
+@dataclass
+class PlaylistGroupTag:
+	tag_name:             str = "New Tag"
+	playlist_uuids: list[int] = []
+	collapsed:           bool = False
+	uuid_int:             int
 
 class PlaylistBox:
 
