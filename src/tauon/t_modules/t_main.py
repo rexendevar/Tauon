@@ -1726,6 +1726,7 @@ class PlayerCtl:
 		# self.album_shuffle_id = ""
 		self.last_playing_time = 0
 		self.multi_playlist = self.bag.multi_playlist
+		self.multi_playlist_tag = self.bag.multi_playlist_tag
 		self.active_playlist_viewing = self.bag.active_playlist_viewing  # the playlist index that is being viewed
 		self.active_playlist_playing = self.bag.active_playlist_playing  # the playlist index that is playing from
 		self.force_queue = self.bag.p_force_queue
@@ -16761,11 +16762,14 @@ class Tauon:
 		view_prefs["append-date"] = prefs.append_date
 
 		tauonplaylist_jar = []
+		playlistgrouptag_jar = []
 		radioplaylist_jar = []
 		tauonqueueitem_jar = []
 		trackclass_jar = []
 		for v in pctl.multi_playlist:
 			tauonplaylist_jar.append(v.__dict__)
+		for v in pctl.multi_playlist_tag:
+			playlistgrouptag_jar.append(v.__dict__)
 		for v in pctl.radio_playlists:
 			radioplaylist_jar.append(v.__dict__)
 		for v in pctl.force_queue:
@@ -16958,6 +16962,7 @@ class Tauon:
 			prefs.replay_preamp,  # 181
 			prefs.gallery_combine_disc,
 			pctl.active_playlist_playing,  # 183
+			playlistgrouptag_jar,  # 184
 		]
 
 		try:
@@ -38816,6 +38821,7 @@ class Bag:
 	cue_list:                list[str]
 	download_directories:    list[str]
 	multi_playlist:          list[TauonPlaylist]
+	multi_playlist_tag:      list[PlaylistGroupTag]
 	radio_playlists:         list[RadioPlaylist]
 	primary_stations:        list[RadioStation]
 	p_force_queue:           list[TauonQueueItem]
@@ -42090,6 +42096,8 @@ def main(holder: Holder) -> None:
 	# Library and loader Variables--------------------------------------------------------
 	master_library: dict[int, TrackClass] = {}
 
+	multi_playlist_tag: list[PlaylistGroupTag] = []
+
 	db_version: float = 0.0
 	latest_db_version: float = 73
 
@@ -42729,6 +42737,12 @@ def main(holder: Holder) -> None:
 				prefs.gallery_combine_disc = save[182]
 			if len(save) > 183 and save[183] is not None:
 				bag.active_playlist_playing = save[183]
+			if len(save) > 184 and save[184] is not None:
+				bag.multi_playlist_tag = []
+				playlistgrouptag_jar = save[184]
+				for i, d in enumerate(playlistgrouptag_jar):
+					p = PlaylistGroupTag(**d)
+					bag.multi_playlist_tag.append(p)
 
 			del save
 			break
