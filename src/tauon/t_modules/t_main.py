@@ -2211,6 +2211,11 @@ class PlayerCtl:
 	def pl_to_id(self, pl: int) -> int:
 		return self.multi_playlist[pl].uuid_int
 
+	def tag_pl_to_pl(self, pl: int, tag_num: int) -> int | None:
+		"""both entry values should be position in their relative containers, NOT uuid"""
+		uuid = self.multi_playlist_tag[tag_num].playlist_uuids[pl]
+		return self.id_to_pl(uuid)
+
 	def notify_change(self) -> None:
 		self.db_inc += 1
 		self.tauon.bg_save()
