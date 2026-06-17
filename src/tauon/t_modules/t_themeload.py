@@ -200,8 +200,8 @@ def save_theme(colours: ColoursClass, path: Path) -> None:
 
 	if colours.deco:
 		lines.append(f"deco={colours.deco}\n")
-	if colours.lm:
-		lines.append("light-mode\n")
+	# if colours.lm:
+	# 	lines.append("light-mode\n")
 
 	for key, attr in THEME_SERIALISABLE_COLOURS:
 		colour = getattr(colours, attr, None)
@@ -219,6 +219,7 @@ def save_theme(colours: ColoursClass, path: Path) -> None:
 
 
 def load_theme(colours: ColoursClass, path: Path) -> None:
+	colours.lm = False
 	with path.open(encoding="utf-8") as f:
 		content = f.readlines()
 
@@ -235,7 +236,7 @@ def load_theme(colours: ColoursClass, path: Path) -> None:
 			if p.startswith("deco="):
 				colours.deco = p.split("=", 1)[1].strip()
 			if "light-mode" in p:
-				colours.light_mode()
+				colours.lm = True
 			if "window frame" in p:
 				colours.window_frame = get_colour_from_line(p)
 			if "gallery highlight" in p:
@@ -465,8 +466,6 @@ def load_theme(colours: ColoursClass, path: Path) -> None:
 			# if "panel button on" in p:
 			# 	colours.corner_button_active = get_colour_from_line(p)
 	colours.post_config()
-	if colours.lm:
-		colours.light_mode()
 
 
 class Drawable:

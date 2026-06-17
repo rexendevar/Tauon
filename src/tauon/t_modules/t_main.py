@@ -1437,6 +1437,7 @@ class ColoursClass:
 		self.sys_title = self.grey(220)
 		self.sys_title_strong = self.grey(230)
 		self.lm = False
+		self.migrate_light_mode = False
 
 		self.pluse_colour = ColourRGBA(244, 212, 66, 255)
 
@@ -1598,6 +1599,7 @@ class ColoursClass:
 		self.pluse_colour = ColourRGBA(212, 66, 244, 255)
 
 		# tauon.view_box.off_colour = self.grey(200)
+		self.migrate_light_mode = True
 
 class TrackClass:
 	"""The fundamental object/data structure of a track"""
@@ -25152,6 +25154,12 @@ class Over:
 		self.theme_editor_val_value = 1.0
 		self.theme_editor_alpha_value = 1.0
 		self.view_supporters = False
+
+	def migrate_light_mode(self) -> None:
+		self.colours.migrate_light_mode = False
+		self.theme_editor_draft_colours = clone_theme_colours(self.colours)
+		save_theme(self.theme_editor_draft_colours, self.active_theme_path())
+		self.gui.reload_theme = True
 
 	def destroy_settings_texture(self) -> None:
 		if self.settings_doc_texture is not None:
@@ -51137,6 +51145,9 @@ def main(holder: Holder) -> None:
 			gui.cursor_want = 0
 
 			gui.layer_focus = 0
+
+			if colours.migrate_light_mode: # this is an awful place to do this but idk where else to put it
+				tauon.pref_box.migrate_light_mode()
 
 			if inp.mouse_click or inp.mouse_wheel or inp.right_click:
 				inp.mouse_position[0], inp.mouse_position[1] = tauon.input_sdl.mouse()
