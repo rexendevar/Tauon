@@ -1556,7 +1556,6 @@ class ColoursClass:
 			self.column_grip     = ColourRGBA(255, 255, 255, 20)
 
 	def light_mode(self) -> None:
-		self.lm = True
 		self.star_line_playing = ColourRGBA(255, 255, 255, 255)
 		self.sys_tab_bg = self.grey(25)
 		self.sys_tab_hl = self.grey(45)
@@ -1599,7 +1598,6 @@ class ColoursClass:
 		self.pluse_colour = ColourRGBA(212, 66, 244, 255)
 
 		# tauon.view_box.off_colour = self.grey(200)
-		self.migrate_light_mode = True
 
 class TrackClass:
 	"""The fundamental object/data structure of a track"""
@@ -51147,6 +51145,7 @@ def main(holder: Holder) -> None:
 			gui.layer_focus = 0
 
 			if colours.migrate_light_mode: # this is an awful place to do this but idk where else to put it
+
 				tauon.pref_box.migrate_light_mode()
 
 			if inp.mouse_click or inp.mouse_wheel or inp.right_click:

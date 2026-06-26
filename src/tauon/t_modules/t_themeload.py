@@ -200,8 +200,8 @@ def save_theme(colours: ColoursClass, path: Path) -> None:
 
 	if colours.deco:
 		lines.append(f"deco={colours.deco}\n")
-	# if colours.lm:
-	# 	lines.append("light-mode\n")
+	if colours.lm:
+		lines.append("light-mode-ported\n")
 
 	for key, attr in THEME_SERIALISABLE_COLOURS:
 		colour = getattr(colours, attr, None)
@@ -236,6 +236,8 @@ def load_theme(colours: ColoursClass, path: Path) -> None:
 			if p.startswith("deco="):
 				colours.deco = p.split("=", 1)[1].strip()
 			if "light-mode" in p:
+				if not "light-mode-ported" in p:
+					colours.migrate_light_mode = True
 				colours.lm = True
 			if "window frame" in p:
 				colours.window_frame = get_colour_from_line(p)
